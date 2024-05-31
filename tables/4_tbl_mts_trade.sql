@@ -53,6 +53,7 @@ create table mts_broker
    ) ;
 
 
+
 --table =>   mts_order_type
 create table mts_order_type 
   (	code                    varchar2(10 char) not null , 
@@ -75,20 +76,23 @@ create table mts_portfolio
    (	  
       id                       number(30,0)  default mts_portfolio_seq.nextval not null , 
       user_id                  varchar2(30 char) default coalesce(sys_context('apex$session','app_user'),user) not null , 
-      broker_id                number(30,0) not null,
+      broker_id                number(30,0) ,
       portfolio_name           varchar2(50 char) not null , 
       account_num              varchar2(20 char) not null , 
       balance                  number(18,2) default 0 not null , 
       investment_balance       number(18,2) default 0 not null , 
+      auto_sync                number(1,0) default 0 not null ,
       broker_login             varchar2(100),
       broker_password          varchar2(100),
+      last_import_trade_at     timestamp,
       active                   number(1,0) default 1 not null ,
       created_by               varchar2(100) default coalesce(sys_context('apex$session','app_user'),user) not null,            
       create_date              timestamp (6) default current_timestamp, 
       updated_by               varchar2(100) , 
       update_date              timestamp (6), 
       --
-		constraint mts_portfolio_con1 check ( active in ( 1,0) ) ,	
+		constraint mts_portfolio_con1 check ( active in ( 1,0) ) ,
+      constraint mts_portfolio_con2 check ( auto_sync in ( 1,0) ) ,	
       -- 
       constraint mts_portfolio_fk foreign key (broker_id) references mts_broker (id) ,
       --
@@ -150,7 +154,7 @@ create table mts_strategy_template
       symbol           varchar2(20), 
       exp_date         timestamp (6), 
       order_type       varchar2(20), 
-      strike           number(10,2), 
+      strike           number(20,5), 
       action_code      varchar2(20), 
       qty              number(10,2),
       active           number(1,0) default 1 not null , 
@@ -176,7 +180,7 @@ create table mts_trade_tran
       symbol                  varchar2(30 byte) , 
       exp_date                timestamp (6) default trunc(current_timestamp), 
       order_type              varchar2(10 char) , 
-      strike                  number(10,2) , 
+      strike                  number(20,5),  
       trade_code              varchar2(60 byte) ,       
       action_code             varchar2(20 char) , 
       qty                     number(10,2) , 
@@ -197,6 +201,8 @@ create table mts_trade_tran
       constraint mts_trade_tran_fk1 foreign key (user_id) references mts_user (user_id) ,
       constraint mts_trade_tran_fk2 foreign key (portfolio_id) references mts_portfolio (id) ,
       --
+      constraint mts_trade_tran_unq1 unique ( user_id,portfolio_id,tran_date,symbol,trade_code,action_code),    
+      --
       constraint mts_trade_tran_pk primary key ( id)
         
    )  ;
@@ -211,7 +217,7 @@ create table mts_trade_vue
       symbol                  varchar2(30) , 
       exp_date                timestamp (6) default trunc(current_timestamp), 
       order_type              varchar2(10) , 
-      strike                  number(10,2) ,
+      strike                  number(20,5), 
       trade_code              varchar2(30) ,
       open_action_code             varchar2(20) , 
       open_date               timestamp (6),
@@ -252,7 +258,7 @@ create table mts_trade_vue
       symbol                  varchar2(30), 
       exp_date                timestamp (6) default trunc(current_timestamp), 
       order_type              varchar2(10 char), 
-      strike                  number(10,2), 
+      strike                  number(20,5), 
       action_code             varchar2(20 char), 
       qty                     number(10,2), 
       price                   number(10,2), 

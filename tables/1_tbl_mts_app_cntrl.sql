@@ -88,5 +88,24 @@ create table mts_app_cntrl_value
 
 create unique index mts_app_cntrl_value_unq on  mts_app_cntrl_value (app_cntrl_id,key );
 
+CREATE TABLE MTS_APP_PROCESS_LOG
+(
+	id              NUMBER(38,0) default MTS_APP_PROCESS_LOG_SEQ.NEXTVAL not null , 
+	LOG_DATE		TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PACKAGE_NAME	VARCHAR2(100),
+	PROCESS_NAME	VARCHAR2(100),
+	LOG_LEVEL		NUMBER(4) DEFAULT 9999 NOT NULL,
+	LOG_MSG 		VARCHAR2(4000) ,
+	LOG_CLOB		CLOB,
+	active           number(1,0) default 1 not null ,
+	created_by       varchar2(100) default coalesce(sys_context('apex$session','app_user'),user) not null,            
+	create_date      timestamp (6) default current_timestamp, 
+	updated_by       varchar2(100) , 
+	update_date      timestamp (6), 
+	constraint 		MTS_APP_PROCESS_LOG_con  check ( active in ( 1,0) ) ,
+	CONSTRAINT  	MTS_APP_PROCESS_LOG_PK	PRIMARY KEY ( ID)
 
+	
+
+);
 

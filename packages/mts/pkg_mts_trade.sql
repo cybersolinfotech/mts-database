@@ -6,7 +6,16 @@ create or replace package pkg_mts_trade as
     function get_action( p_code     mts_trade_action.code%type ) return mts_trade_action.name%type; 
     function get_order_type( p_code     mts_order_type.code%type ) return mts_order_type.name%type ;
     function get_portfolio_name(p_portfolio_id  mts_portfolio.id%type) return mts_portfolio.portfolio_name%type;
+    function get_trade_code( 
+                             p_symbol   mts_trade_tran.symbol%type,
+                             p_exp_date   mts_trade_tran.exp_date%type,
+                             p_order_type   mts_trade_tran.order_type%type,
+                             p_strike   mts_trade_tran.strike%type
 
+                            ) return varchar2;
+
+    function get_action_code(   p_portfolio_id  mts_trade_tran.portfolio_id%type,
+                                p_trade_code    mts_trade_tran.trade_code%type) return mts_trade_action.code%type;
 
     procedure merge_trade_tran(
             p_trade_tran_id         in  out mts_trade_tran.id%type,
@@ -115,7 +124,42 @@ end pkg_mts_trade;
         return pl_return; 
     end get_portfolio_name; 
 
-    
+    function get_action_code(   p_portfolio_id  mts_trade_tran.portfolio_id%type,
+                                p_trade_code    mts_trade_tran.trade_code%type) return mts_trade_action.code%type
+    as
+        l_return       mts_trade_action.code%type ; 
+    begin 
+ 
+        begin 
+            select  action_code  
+            into    l_return 
+            from    mts_trade_tran
+            where   portfolio_id = p_portfolio_id
+            and     trade_code = p_trade_code
+            and     action_code in ( 'BTO','STO')
+            order by 1 desc
+            fetch first 1 rows only; 
+        exception 
+            when no_data_found then 
+                l_return := null; 
+        end; 
+ 
+        return l_return; 
+    end get_action_code; 
+
+    function get_trade_code( 
+                             p_symbol   mts_trade_tran.symbol%type,
+                             p_exp_date   mts_trade_tran.exp_date%type,
+                             p_order_type   mts_trade_tran.order_type%type,
+                             p_strike   mts_trade_tran.strike%type
+
+                            ) return varchar2
+
+    as
+    begin
+        return trim(p_symbol) || '-' || nvl(to_char(p_exp_date,'YYYYMMDD'),'99991231')|| '-'|| nvl(p_order_type,'E') || '-' || to_char(NVL(p_strike,'999999'));
+    end ;
+     
 
     /***************************************************************************
         procedure: merge_trade_tran

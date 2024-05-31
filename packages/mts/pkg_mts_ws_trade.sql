@@ -4,6 +4,8 @@
  create or replace package pkg_mts_ws_trade as
 
     function  get_seq_no_nextval(p_user_id            mts_ws_trade.user_id%type)  return number;
+    function get_action_code(   p_portfolio_id  mts_trade_tran.portfolio_id%type,
+                                p_trade_code    mts_trade_tran.trade_code%type) return mts_trade_action.code%type;
     procedure truncate_ws_trade(p_user_id             mts_ws_trade.user_id%type);
     procedure build_ws_trade_from_Strategy(p_user_id        mts_ws_trade.user_id%type,
                                            p_portfolio_id   mts_portfolio.id%type,
@@ -75,6 +77,30 @@ end pkg_mts_ws_trade;
         end;
         return pl_return;
     end;
+    -- get_action_code
+    function get_action_code(   p_portfolio_id  mts_trade_tran.portfolio_id%type,
+                                p_trade_code    mts_trade_tran.trade_code%type) return mts_trade_action.code%type
+    as
+         
+        l_return       mts_trade_action.code%type ; 
+    begin 
+ 
+        begin 
+            select  action_code  
+            into    l_return 
+            from    mts_ws_trade
+            where   portfolio_id = p_portfolio_id
+            and     pkg_mts_util.get_trade_code( symbol, exp_date, order_type, strike) = p_trade_code
+            and     action_code in ( 'BTO','STO')
+            order by 1 desc
+            fetch first 1 rows only; 
+        exception 
+            when no_data_found then 
+                l_return := null; 
+        end; 
+ 
+        return l_return; 
+    end get_action_code; 
 
     /***************************************************************************
         procedure: merge_trade
@@ -279,21 +305,13 @@ end pkg_mts_ws_trade;
                 source_order_id ,
                 notes
         from    mts_ws_trade
-        where   user_id = p_user_id
+        where   user_id = 'nishishukla@yahoo.com' 
         order by tran_date asc;
 
         truncate_ws_trade(p_user_id);
 
         commit;
     end;
-
-
-
-    
-
-    
-
-    
 
 end pkg_mts_ws_trade;
 /

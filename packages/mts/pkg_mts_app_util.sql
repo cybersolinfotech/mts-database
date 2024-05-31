@@ -1,7 +1,13 @@
 /*****************************************************************************************************************
  PACAKAGE SPEC :
  *******************************************************************************************************************/
-create or replace package pkg_mts_app_setup as
+create or replace package pkg_mts_app_util as
+
+        MESSAGE         CONSTANT NUMBER := 10;
+        INFO            CONSTANT NUMBER := 20;
+        WARNING         CONSTANT NUMBER := 30;
+        ERROR           CONSTANT NUMBER := 9999;
+
         --------------------------------------------------------------------------------------
         --    APP_CNTRL
         --------------------------------------------------------------------------------------
@@ -71,14 +77,26 @@ create or replace package pkg_mts_app_setup as
 
         procedure purge_api_vendor_token;
 
+        --------------------------------------------------------------------------------------
+        --    APP_PROCESS_LOG
+        --------------------------------------------------------------------------------------
+        PROCEDURE LOG_MESSAGE (
+                                P_PACKAGE_NAME	MTS_APP_PROCESS_LOG.PACKAGE_NAME%TYPE DEFAULT NULL,
+	                        P_PROCESS_NAME	MTS_APP_PROCESS_LOG.PROCESS_NAME%TYPE  DEFAULT NULL,
+	                        P_LOG_LEVEL	MTS_APP_PROCESS_LOG.LOG_LEVEL%TYPE  DEFAULT 9999,
+	                        P_LOG_MSG 	MTS_APP_PROCESS_LOG.LOG_MSG%TYPE  DEFAULT NULL,
+	                        P_LOG_CLOB	MTS_APP_PROCESS_LOG.LOG_CLOB%TYPE  DEFAULT NULL);
+
+        
+
                 
-end pkg_mts_app_setup;
+end pkg_mts_app_util;
 /
 
 /*****************************************************************************************************************
  PACAKAGE BODY :
  *******************************************************************************************************************/
-create or replace package body pkg_mts_app_setup as
+create or replace package body pkg_mts_app_util as
  
         --------------------------------------------------------------------------------------
         --    APP_CNTRL
@@ -148,12 +166,12 @@ create or replace package body pkg_mts_app_setup as
         is
         begin
                 update mts_app_cntrl_value
-                set     key = nvl(p_key,key),
-                        str_value = nvl(p_str_value, str_value),
+                set     str_value = nvl(p_str_value, str_value),
                         timestamp_value = nvl(p_timestamp_value, timestamp_value),
                         number_value = nvl(p_number_value, number_value),
                         active = nvl(p_active,active)
-                where   id = p_app_cntrl_value_id;       
+                where   app_cntrl_id = p_app_cntrl_id
+                and     key = p_key;       
 
                 if sql%rowcount = 0 then
                         insert into mts_app_cntrl_value ( app_cntrl_id, key, str_value, timestamp_value, number_value, active)
@@ -354,8 +372,30 @@ create or replace package body pkg_mts_app_setup as
 
         end purge_api_vendor_token;
 
+        -- procedure => LOG_MESSAGE
+        PROCEDURE LOG_MESSAGE (
+                                P_PACKAGE_NAME	MTS_APP_PROCESS_LOG.PACKAGE_NAME%TYPE DEFAULT NULL,
+	                        P_PROCESS_NAME	MTS_APP_PROCESS_LOG.PROCESS_NAME%TYPE  DEFAULT NULL,
+	                        P_LOG_LEVEL	MTS_APP_PROCESS_LOG.LOG_LEVEL%TYPE  DEFAULT 9999,
+	                        P_LOG_MSG 	MTS_APP_PROCESS_LOG.LOG_MSG%TYPE  DEFAULT NULL,
+	                        P_LOG_CLOB	MTS_APP_PROCESS_LOG.LOG_CLOB%TYPE  DEFAULT NULL)
+                                
+        AS
+                PL_LOG_LEVEL   mts_app_cntrl_value.number_value%type;
+                PL_LOG         BOOLEAN;
         
+        BEGIN
+                PL_LOG_LEVEL := get_app_cntrl_number_value( 
+                                                        p_app_cntrl_name => 'MTS_APP_CONFIG',
+                                                        p_key => 'LOG_LEVEL');
+
+                IF PL_LOG_LEVEL <= P_LOG_LEVEL THEN  
+                        INSERT INTO MTS_APP_PROCESS_LOG (PACKAGE_NAME, PROCESS_NAME, LOG_LEVEL, LOG_MSG, LOG_CLOB)                
+                        VALUES (P_PACKAGE_NAME, P_PROCESS_NAME, P_LOG_LEVEL, P_LOG_MSG, P_LOG_CLOB);     
+                END IF;
+
+        END LOG_MESSAGE; 
 
 
-end pkg_mts_app_setup;
+end pkg_mts_app_util;
 /

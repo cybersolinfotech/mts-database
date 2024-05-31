@@ -1,4 +1,5 @@
 -- app
+create sequence mts_app_process_log_seq  minvalue 1 cache 20;
 create sequence mts_app_cntrl_seq minvalue 1 cache 20;
 create sequence mts_app_cntrl_value_seq minvalue 1 cache 20;
 create sequence mts_mbr_type_seq minvalue 1 cache 20;

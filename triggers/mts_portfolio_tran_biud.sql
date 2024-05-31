@@ -21,8 +21,7 @@ begin
 	elsif updating then
 
         :new.update_date := current_timestamp;	
-		:new.updated_by := coalesce(sys_context('apex$session','app_user'),user); 	
-	
+		:new.updated_by := coalesce(sys_context('apex$session','app_user'),user); 
 		
 		if lower(:new.tran_type) = 'deposit' then
 			:new.amount := abs(:new.amount);

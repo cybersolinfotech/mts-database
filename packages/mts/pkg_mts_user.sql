@@ -16,7 +16,13 @@ create or replace package pkg_mts_user as
     function get_dflt_portfolio_id(p_user_id        mts_user.user_id%type ) return number;
    
     function get_user_theme(p_user_id               mts_user.user_id%type ) return varchar2;
+    function get_mbr_type_id(p_user_id               mts_user.user_id%type ) return mts_user.mbr_type_id%type;
+    function get_mbr_type(p_user_id               mts_user.user_id%type ) return    mts_mbr_type.mbr_type%type;
     
+    procedure set_user_theme(   p_app_id        number,
+                                p_user_id       mts_user.user_id%type,
+                                p_theme         mts_user.theme%type default 'dark');
+
     procedure register_user( p_user_id      mts_user.user_id%type,
                              p_email        mts_user.email%type,
                              p_theme        mts_user.theme%type default 'dark',
@@ -78,6 +84,8 @@ create or replace package pkg_mts_user as
                             p_role_name     mts_role.role_name%type         default null,
                             pl_hierarchy    mts_role.hierarchy%type         default null,
                             p_active        mts_role.active%type            default 1);
+
+    
 
 end pkg_mts_user;
 /
@@ -235,6 +243,65 @@ create or replace package body pkg_mts_user as
         return pl_return;
     end get_user_theme;
 
+    function get_mbr_type_id(p_user_id               mts_user.user_id%type ) return mts_user.mbr_type_id%type
+    as
+        pl_return mts_user.mbr_type_id%type;
+    begin 
+        begin
+            select  mbr_type_id
+            into    pl_return
+            from    mts_user
+            where   user_id = p_user_id;
+
+        exception
+            when no_data_found then
+               pl_return := 1; 
+        end; 
+        return pl_return;
+    end;
+
+    function get_mbr_type(p_user_id               mts_user.user_id%type ) return    mts_mbr_type.mbr_type%type
+    as
+        pl_return mts_mbr_type.mbr_type%type;
+    begin 
+        begin
+            select  mbr_type
+            into    pl_return
+            from    mts_user u
+            join    mts_mbr_type m on m.id = u.mbr_type_id
+            where   user_id = p_user_id;
+
+        exception
+            when no_data_found then
+               pl_return := 1; 
+        end; 
+        return pl_return;
+    end;
+
+    -- procedure => set user theme
+    procedure set_user_theme(   p_app_id        number,
+                                p_user_id       mts_user.user_id%type,
+                                p_theme         mts_user.theme%type default 'dark')
+    as
+            pl_theme_style_id   number;
+            pl_theme_number	  number;
+
+    begin
+            SELECT s.theme_style_id, t.theme_number
+            INTO   pl_theme_style_id,pl_theme_number 
+            FROM   apex_application_theme_styles s, apex_application_themes t
+            WHERE  s.application_id = t.application_id 
+            AND    s.theme_number = t.theme_number 
+            AND    s.application_id = p_app_id
+            AND    lower(s.name) = lower(p_theme);  
+
+
+            apex_theme.set_user_style(p_application_id => p_app_id, 
+                                        p_user =>  p_user_id, 
+                                        p_theme_number => pl_theme_number, 
+                                        p_id => pl_theme_style_id   );
+
+    end set_user_theme;
 
     
     -- procedure => register_user

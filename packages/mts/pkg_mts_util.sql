@@ -13,6 +13,16 @@ create or replace package pkg_mts_util as
                                         p_open_price    number, 
                                         p_close_qty     number, 
                                         p_close_price number) return number;
+    function get_unit_price(    p_qty      number, 
+                                p_price    number) return number;
+
+    function get_trade_code( 
+                             p_symbol   mts_trade_tran.symbol%type,
+                             p_exp_date   mts_trade_tran.exp_date%type,
+                             p_order_type   mts_trade_tran.order_type%type,
+                             p_strike   mts_trade_tran.strike%type
+
+                            ) return varchar2;
 
     procedure print_clob_to_output(p_clob clob);
 
@@ -76,17 +86,14 @@ create or replace package body pkg_mts_util as
     as
         pl_return   number;
     begin
+        dbms_output.put_line('p_open_qty =' || p_open_qty);
+        dbms_output.put_line('p_open_price =' || p_open_price);
+        dbms_output.put_line('p_close_qty =' || p_close_qty);
+        dbms_output.put_line('p_close_price =' || p_close_price);
         if ( abs(nvl(p_open_qty,0)) != abs(nvl(p_close_qty,0)) ) then
             pl_return := null;
         else
-            if p_open_qty < 0 then
-                pl_return := round(abs(nvl(p_open_price,0)) - abs(nvl(p_close_price,0))) ;
-            elsif p_open_qty > 0 then
-                pl_return := round(abs(nvl(p_close_price,0)) - abs(nvl(p_open_price,0)));
-            else
-                pl_return := 0;
-            end if;
-
+            pl_return := nvl(p_open_price,0) + nvl(p_close_price,0);
         end if;
         
         return pl_return;
@@ -106,28 +113,39 @@ create or replace package body pkg_mts_util as
             pl_return := null;
         
         else
-            if ( p_open_price = 0) then 
-                pl_open_price := 1; 
-            else  
-                pl_open_price := p_open_price; 
-            end if;
-
-            if p_open_qty < 0 then -- short position                
-                pl_profit_loss := round(abs(nvl(p_open_price,0)) - abs(nvl(p_close_price,0))) ;
-                pl_return := round((pl_profit_loss / abs(nvl(pl_open_price,1))) * 100,2) ;                
-            elsif p_open_qty > 0 then -- long position                
-                    pl_profit_loss := round(abs(nvl(p_close_price,0)) - abs(nvl(p_open_price,0)));
-                    dbms_output.put_line('PL:' || pl_profit_loss);
-
-                    pl_return := round((pl_profit_loss / abs(nvl(pl_open_price,1))) * 100,2) ;                
-            else
-                pl_return := 0;
-            end if;
+            pl_profit_loss  :=  nvl(p_open_price,0) + nvl(p_close_price,0);
+            pl_return := pl_profit_loss/nvl(p_open_price,1) * 100;
 
         end if;
         
         return pl_return;
 
     end get_profit_loss_percent;
+
+    function get_unit_price(    p_qty      number, 
+                            p_price    number) return number
+    as
+        pl_return       number;
+    begin  
+        if ( nvl(p_qty,0) = 0 ) THEN
+            pl_return := 0;  
+        else   
+            pl_return := round(p_price /p_qty,4);    
+        end if;
+        return pl_return;
+    end get_unit_price;
+
+    function get_trade_code( 
+                             p_symbol   mts_trade_tran.symbol%type,
+                             p_exp_date   mts_trade_tran.exp_date%type,
+                             p_order_type   mts_trade_tran.order_type%type,
+                             p_strike   mts_trade_tran.strike%type
+
+                            ) return varchar2
+
+    as
+    begin
+        return trim(p_symbol) || '-' || nvl(to_char(p_exp_date,'YYYYMMDD'),'99991231')|| '-'|| nvl(p_order_type,'E') || '-' || to_char(NVL(p_strike,'999999'));
+    end ;
 end pkg_mts_util; 
 /

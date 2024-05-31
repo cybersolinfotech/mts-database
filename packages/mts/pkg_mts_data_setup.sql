@@ -35,6 +35,7 @@ AS
         insert into mts_trade_action ( code,name ) values ('STC','SELL TO CLOSE');
         insert into mts_trade_action ( code,name ) values ('BUY','BUY');
         insert into mts_trade_action ( code,name ) values ('SELL','SELL');
+        insert into mts_trade_action ( code,name ) values ('REMO','REMOVAL OF OPTION');
         COMMIT;
     END;
 
@@ -109,8 +110,8 @@ AS
         );
 
         pkg_mts_user.register_user(
-        p_user_id => 'nishishukla@yahoo,.com',
-        p_email => 'nishishukla@yahoo,.com',
+        p_user_id => 'nishishukla@yahoo,com',
+        p_email => 'nishishukla@yahoo,com',
         p_theme => 'dark',
         p_role_id => 'SUPER-ADMIN'
     );
@@ -144,11 +145,18 @@ AS
                     p_str_value  => 'USD',
                     p_active => 1);
 
-        ------------------- Setup STRIPE config data ------------------------
+        pkg_mts_app_setup.set_app_cntrl_value(
+                    p_app_cntrl_value_id => pl_app_cntrl_value_id,
+                    p_app_cntrl_id => pkg_mts_app_setup.get_app_cntrl_id(p_name => 'MTS_APP_CONFIG'),
+                    p_key  => 'LOG_LEVEL',
+                    p_str_number  => 9999,
+                    p_active => 1);
+
+        ------------------- Setup TASTYTRADE_API config data ------------------------
         pkg_mts_app_setup.set_app_cntrl(
             p_app_cntrl_id => pl_app_cntrl_id,
             p_name  => 'TASTYTRADE_API' ,
-            p_description  => 'Tasty Trade API setup for trades' ,
+            p_description  => 'Tasty Trade API setup' ,
             p_active => 1
         );
 
@@ -174,6 +182,21 @@ AS
                     p_str_value  => 'XXXXXXX',
                     p_active => 1);
 
+        ------------------- Setup TASTYTRADE config data ------------------------
+        pkg_mts_app_setup.set_app_cntrl(
+            p_app_cntrl_id => pl_app_cntrl_id,
+            p_name  => 'TASTYTRADE_API' ,
+            p_description  => 'TastyTrade API setup for broker' ,
+            p_active => 1
+        );
+
+        pkg_mts_app_setup.set_app_cntrl_value(
+                    p_app_cntrl_value_id => pl_app_cntrl_value_id,
+                    p_app_cntrl_id => pkg_mts_app_setup.get_app_cntrl_id(p_name => 'TASTYTRADE_API'),
+                    p_key  => 'BASE_URL',
+                    p_str_value  => 'https://api.tastyworks.com/',
+                    p_active => 1);
+
         ------------------- SETUP API VENDOR ------------------------
         pkg_mts_app_setup.set_api_vendor(
             p_vendor_code  => 'TASTYTRADE' ,
@@ -184,6 +207,18 @@ AS
         COMMIT;
     END;
 
+    PROCEDURE SETUP_BROKER
+    AS
+    BEGIN
+        insert into mts_broker (BROKER_NAME) values ('TASTYTRADE');
+        insert into mts_broker (BROKER_NAME) values ('WEBULL');
+        insert into mts_broker (BROKER_NAME) values ('E-TRADE');
+        insert into mts_broker (BROKER_NAME) values ('FIDELITY');
+        insert into mts_broker (BROKER_NAME) values ('ALPACA');
+        COMMIT;
+    END;
+
+
     PROCEDURE SETUP_MTS_DATA
     AS
     BEGIN
@@ -193,6 +228,7 @@ AS
         SETUP_STRATEGY;
         SETUP_ROLE;
         SETUP_APP_CONTROL;
+        SETUP_BROKER;
     END;
 END PKG_MTS_DATA_SETUP;
 /

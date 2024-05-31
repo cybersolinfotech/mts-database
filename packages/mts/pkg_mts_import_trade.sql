@@ -13,9 +13,13 @@ create or replace package  pkg_mts_import_trade as
     );
 
     
-    
-    
     procedure   load_import_trade_data_to_ws(p_import_log_id  mts_import_trade_log.id%type);
+
+    PROCEDURE   sync_trade_data(    p_user_id            mts_user.user_id%type,
+                                    p_portfolio_id       mts_portfolio.id%type,
+                                    p_import_log_id      out mts_import_trade_log.id%type );
+
+
     
 
 end pkg_mts_import_trade;
@@ -77,6 +81,8 @@ create or replace package body pkg_mts_import_trade as
         pl_start_time               timestamp := current_timestamp;
         pl_end_time                 timestamp;
         pl_load_status              mts_import_trade_log.load_status%type := 'S';
+        
+        l_tmp_action_code           mts_trade_action.code%type;
 
         cursor c1 is
         select * 
@@ -109,7 +115,7 @@ create or replace package body pkg_mts_import_trade as
                 -- get tran_date
                 select TO_UTC_TIMESTAMP_TZ(c1rec.col_10) into pl_ws_trade_rec.tran_date from dual;
                 --pl_ws_trade_rec.tran_date       := TO_UTC_TIMESTAMP_TZ(c1rec.col_10) ;
-                pl_ws_trade_rec.symbol          := replace(trim(substr(c1rec.col_2,1,6)),'.','');
+                pl_ws_trade_rec.symbol          := trim(substr(replace(c1rec.col_2,'.',''),1,6));
                 dbms_output.put_line('[load_import_trade_data_to_ws].[pl_ws_trade_rec.tran_date] = ' ||  pl_ws_trade_rec.tran_date);
                 dbms_output.put_line('[load_import_trade_data_to_ws].[pl_ws_trade_rec.symbol] = ' ||  pl_ws_trade_rec.symbol);
                     
@@ -147,6 +153,7 @@ create or replace package body pkg_mts_import_trade as
                 dbms_output.put_line('[load_import_trade_data_to_ws].[pl_ws_trade_rec.strike] = ' ||  pl_ws_trade_rec.strike);
                 dbms_output.put_line('[load_import_trade_data_to_ws].[pl_ws_trade_rec.order_type] = ' ||  pl_ws_trade_rec.order_type);
 
+                
                 -- get action_code
                 if lower(trim(c1rec.col_7)) in ( 'buy to open','buy_to_open') then
                     pl_ws_trade_rec.action_code := 'BTO';
@@ -160,6 +167,8 @@ create or replace package body pkg_mts_import_trade as
                     pl_ws_trade_rec.action_code := 'BUY';
                 elsif lower(trim(c1rec.col_7)) in ( 'sell') then
                     pl_ws_trade_rec.action_code := 'SELL';                
+                elsif ( lower(c1rec.col_6) like '%removal of option%') then
+                    pl_ws_trade_rec.action_code := 'REMO';
                 else
                     pl_ws_trade_rec.action_code := NULL;
                 end if;
@@ -168,32 +177,49 @@ create or replace package body pkg_mts_import_trade as
                 -- get quantity
                 pl_ws_trade_rec.qty := to_number(c1rec.col_8);
                 -- get price
-                pl_ws_trade_rec.price := to_number(c1rec.col_11);
-                -- get commission
-                pl_ws_trade_rec.commission := to_number(c1rec.col_15) ;
-                -- get fees
-                pl_ws_trade_rec.fees := to_number(c1rec.col_12)  + to_number(c1rec.col_13) ;
-                -- order id
-                pl_ws_trade_rec.source_order_id := c1rec.col_16;
-                pl_ws_trade_rec.notes := c1rec.col_6; 
-                pl_ws_trade_rec.trade_code := trim(pl_ws_trade_rec.symbol) || '-' || to_char(pl_ws_trade_rec.exp_date,'YYYYMMDD') || '-'|| pl_ws_trade_rec.order_type || '-' || to_char(pl_ws_trade_rec.strike);
-
-                /*
-                If lower(pl_ws_trade_rec.order_type) in ( 'future','equity') OR pl_ws_trade_rec.action_code is null then
-                        select  count(*)
-                        into    pl_open_trade_count
-                        from    v_mts_trade_position
-                        where   portfolio_id = pl_import_log_rec.portfolio_id
-                        and     trade_code = pl_ws_trade_rec.trade_code
-                        and     open_qty > close_qty;
-
-                        if pl_open_trade_count > 0 then
-                            pl_ws_trade_rec.action_code := 'SELL';
-                        else
-                            pl_ws_trade_rec.action_code := 'BUY';    
-                        end if;
+                if ( lower(c1rec.col_12) = 'debit'  ) then
+                    pl_ws_trade_rec.price := to_number(c1rec.col_11) *-1;
+                else  
+                    pl_ws_trade_rec.price := to_number(c1rec.col_11);
                 end if;
-                */
+                -- get commission
+                pl_ws_trade_rec.commission := to_number(c1rec.col_16)*-1 ;
+                -- get fees
+                pl_ws_trade_rec.fees := to_number(c1rec.col_13)*-1  + to_number(c1rec.col_14)*-1 ;
+                -- order id
+                pl_ws_trade_rec.source_order_id := c1rec.col_17;
+                pl_ws_trade_rec.notes := c1rec.col_6; 
+                pl_ws_trade_rec.trade_code := pkg_mts_util.get_trade_code(
+                                                                            p_symbol => pl_ws_trade_rec.symbol,
+                                                                            p_exp_date => pl_ws_trade_rec.exp_date,
+                                                                            p_order_type => pl_ws_trade_rec.order_type,
+                                                                            p_strike => pl_ws_trade_rec.strike
+                                                                            );
+                
+                if ( pl_ws_trade_rec.action_code = 'REMO') THEN
+                    
+                    l_tmp_action_code := pkg_mts_trade.get_action_code(
+                                                                        p_portfolio_id => pl_ws_trade_rec.portfolio_id,
+                                                                        p_trade_code => pl_ws_trade_rec.trade_code);
+
+                    if ( l_tmp_action_code is null) then   
+                        l_tmp_action_code := pkg_mts_ws_trade.get_action_code(
+                                                                        p_portfolio_id => pl_ws_trade_rec.portfolio_id,
+                                                                        p_trade_code => pl_ws_trade_rec.trade_code);
+                    end if;
+                    
+                    dbms_output.put_line('[load_import_trade_data_to_ws].[l_tmp_action_code] = ' || l_tmp_action_code); 
+                    if ( nvl(l_tmp_action_code,'XXX') = 'BTO') then
+                        pl_ws_trade_rec.qty := abs(pl_ws_trade_rec.qty) *-1 ;
+                        dbms_output.put_line('[1.load_import_trade_data_to_ws].[pl_ws_trade_rec.qty--] = ' || pl_ws_trade_rec.qty );
+                    elsif ( nvl(l_tmp_action_code,'XXX') = 'STO' )  then
+                        dbms_output.put_line('[2.load_import_trade_data_to_ws].[pl_ws_trade_rec.qty--] = ' || pl_ws_trade_rec.qty );
+                        pl_ws_trade_rec.qty := abs(pl_ws_trade_rec.qty);
+                    end if;
+                    
+
+                end if;
+                
 
                 dbms_output.put_line('[load_import_trade_data_to_ws].[pl_ws_trade_rec.qty] = ' ||  pl_ws_trade_rec.qty);
                 dbms_output.put_line('[load_import_trade_data_to_ws].[pl_ws_trade_rec.price] = ' ||  pl_ws_trade_rec.price);
@@ -240,6 +266,91 @@ create or replace package body pkg_mts_import_trade as
         where   id = p_import_log_id;
         
     end load_import_trade_data_to_ws; 
+
+    --------------------------------------------------------------------------------------
+    --    PROCEDURE : sync_trade_data
+    --------------------------------------------------------------------------------------
+    PROCEDURE   sync_trade_data(    p_user_id            mts_user.user_id%type,
+                                    p_portfolio_id       mts_portfolio.id%type,
+                                    p_import_log_id      out mts_import_trade_log.id%type )
+    AS  
+        pl_import_log_id     mts_import_trade_log.id%type;
+        pl_portfolio_rec     mts_portfolio%rowtype;
+        pl_rec_count         number;  
+    BEGIN
+
+        BEGIN
+                select  *
+                into    pl_portfolio_rec
+                from    mts_portfolio
+                where   id = p_portfolio_id;
+
+                if ( pl_portfolio_rec.broker_id is null OR pl_portfolio_rec.account_num is null) then
+                    raise_application_error(-20000, 'Portfolio is not set for auto sync.', true); 
+                end if;
+        EXCEPTION
+            when no_data_found then 
+                raise_application_error(-20000, 'Portfolio not found.', true);   
+        END;
+
+        -- Get Transaction from TastyTrade
+        pkg_tastytrade_api.get_transaction(  p_portfolio_id => p_portfolio_id );
+
+        -- Load Trade Transaction from TastyTrade Staging table to mts_import_trade_log/data table.
+        begin 
+            select count(*) into pl_rec_count
+            from   mts_tastytrade_tran_stg
+            where  portfolio_id = p_portfolio_id;
+
+            if (pl_rec_count > 0 ) then
+                -- create record in mts_trade_import_log table
+                create_import_log(
+                                    p_import_log_id => pl_import_log_id ,
+                                    p_user_id => p_user_id,
+                                    p_portfolio_id => p_portfolio_id,
+                                    p_broker_id => pl_portfolio_rec.broker_id
+                );
+
+                insert into mts_import_trade_data ( import_trade_log_id, line_number,
+                                                col_1, col_2, col_3, col_4, col_5, 
+                                                col_6, col_7, col_8, col_9, col_10, 
+                                                col_11, col_12, col_13, col_14, col_15 ,
+                                                col_16, col_17, col_18 )        
+
+                select  pl_import_log_id,line_number,
+                        account_number, symbol, instrument_type, underlying_symbol,transaction_type, 
+                        description, action, quantity,price, executed_at, 
+                        value, value_effect, regulatory_fees, clearing_fees, net_value,
+                        commission,order_id ,currency
+                from   mts_tastytrade_tran_stg
+                where  portfolio_id = p_portfolio_id;
+
+            
+                -- Move data from mts_import_trade_data table to mts_ws_trade ( Trade Workspace ) 
+                DBMS_OUTPUT.PUT_LINE('[pkg_mts_import_trade][sync_trade_data][pl_import_log_id] = ' || pl_import_log_id);
+                load_import_trade_data_to_ws(p_import_log_id => pl_import_log_id);
+
+                -- Finalize Trade.
+                pkg_mts_ws_trade.finalize_trade(p_user_id=> p_user_id);
+
+                p_import_log_id := pl_import_log_id;
+
+                commit;
+            else  
+                p_import_log_id := 0;
+            end if;
+        exception
+            when no_data_found then
+                null;
+        end;
+
+        
+
+        
+
+        
+
+    END sync_trade_data;
 
     
 
