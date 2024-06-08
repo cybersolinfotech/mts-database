@@ -81,11 +81,11 @@ create or replace package pkg_mts_app_util as
         --    APP_PROCESS_LOG
         --------------------------------------------------------------------------------------
         PROCEDURE LOG_MESSAGE (
-                                P_PACKAGE_NAME	MTS_APP_PROCESS_LOG.PACKAGE_NAME%TYPE DEFAULT NULL,
-	                        P_PROCESS_NAME	MTS_APP_PROCESS_LOG.PROCESS_NAME%TYPE  DEFAULT NULL,
-	                        P_LOG_LEVEL	MTS_APP_PROCESS_LOG.LOG_LEVEL%TYPE  DEFAULT 9999,
-	                        P_LOG_MSG 	MTS_APP_PROCESS_LOG.LOG_MSG%TYPE  DEFAULT NULL,
-	                        P_LOG_CLOB	MTS_APP_PROCESS_LOG.LOG_CLOB%TYPE  DEFAULT NULL);
+                P_PACKAGE_NAME	MTS_APP_PROCESS_LOG.PACKAGE_NAME%TYPE DEFAULT NULL,
+                P_PROCESS_NAME	MTS_APP_PROCESS_LOG.PROCESS_NAME%TYPE  DEFAULT NULL,
+                p_LOG_TYPE      CHAR DEFAULT 'E',
+                P_MSG_STR 	MTS_APP_PROCESS_LOG.MSG_STR%TYPE  DEFAULT NULL,
+                p_MSG_CLOB	MTS_APP_PROCESS_LOG.MSG_CLOB%TYPE  DEFAULT NULL);
 
         
 
@@ -113,7 +113,7 @@ create or replace package body pkg_mts_app_util as
                 set     name = nvl(p_name,name),
                         description = nvl(p_description,description),
                         active = nvl(p_active,active)
-                where   id = nvl(p_app_cntrl_id,0); 
+                where   id = p_app_cntrl_id; 
 
                 if sql%rowcount = 0 then 
                         insert into mts_app_cntrl ( name, description, active)
@@ -374,25 +374,28 @@ create or replace package body pkg_mts_app_util as
 
         -- procedure => LOG_MESSAGE
         PROCEDURE LOG_MESSAGE (
-                                P_PACKAGE_NAME	MTS_APP_PROCESS_LOG.PACKAGE_NAME%TYPE DEFAULT NULL,
-	                        P_PROCESS_NAME	MTS_APP_PROCESS_LOG.PROCESS_NAME%TYPE  DEFAULT NULL,
-	                        P_LOG_LEVEL	MTS_APP_PROCESS_LOG.LOG_LEVEL%TYPE  DEFAULT 9999,
-	                        P_LOG_MSG 	MTS_APP_PROCESS_LOG.LOG_MSG%TYPE  DEFAULT NULL,
-	                        P_LOG_CLOB	MTS_APP_PROCESS_LOG.LOG_CLOB%TYPE  DEFAULT NULL)
+                P_PACKAGE_NAME	MTS_APP_PROCESS_LOG.PACKAGE_NAME%TYPE DEFAULT NULL,
+                P_PROCESS_NAME	MTS_APP_PROCESS_LOG.PROCESS_NAME%TYPE  DEFAULT NULL,
+                p_LOG_TYPE      CHAR DEFAULT 'E',
+                P_MSG_STR 	MTS_APP_PROCESS_LOG.MSG_STR%TYPE  DEFAULT NULL,
+                p_MSG_CLOB	MTS_APP_PROCESS_LOG.MSG_CLOB%TYPE  DEFAULT NULL)
                                 
         AS
-                PL_LOG_LEVEL   mts_app_cntrl_value.number_value%type;
-                PL_LOG         BOOLEAN;
+                PL_LOG_MSG          char(1);
         
         BEGIN
-                PL_LOG_LEVEL := get_app_cntrl_number_value( 
+                PL_LOG_MSG := get_app_cntrl_str_value( 
                                                         p_app_cntrl_name => 'MTS_APP_CONFIG',
-                                                        p_key => 'LOG_LEVEL');
+                                                        p_key => 'LOG_MSG');
 
-                IF PL_LOG_LEVEL <= P_LOG_LEVEL THEN  
-                        INSERT INTO MTS_APP_PROCESS_LOG (PACKAGE_NAME, PROCESS_NAME, LOG_LEVEL, LOG_MSG, LOG_CLOB)                
-                        VALUES (P_PACKAGE_NAME, P_PROCESS_NAME, P_LOG_LEVEL, P_LOG_MSG, P_LOG_CLOB);     
+                IF ( P_LOG_TYPE = 'E' OR PL_LOG_MSG = 'Y' ) then
+                        INSERT INTO MTS_APP_PROCESS_LOG (PACKAGE_NAME, PROCESS_NAME, MSG_STR, MSG_CLOB)                
+                        VALUES (P_PACKAGE_NAME, P_PROCESS_NAME,  P_MSG_STR, p_MSG_CLOB);   
+
+                        COMMIT;  
                 END IF;
+
+                
 
         END LOG_MESSAGE; 
 

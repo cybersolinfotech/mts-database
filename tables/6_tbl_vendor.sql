@@ -1,13 +1,14 @@
 --table =>   mts_symbol
 create table mts_tastytrade_tran_stg 
    (
-        portfolio_id                number not null,	
+        portfolio_id                VARCHAR2(32) not null,	
         line_number                 number not null,
         account_number              varchar2(100),   
         symbol                      varchar2(100),
         instrument_type             varchar2(100),
         underlying_symbol           varchar2(100),
         transaction_type            varchar2(100),
+        transaction_sub_type        varchar2(100),
         description                 varchar2(100),
         action                      varchar2(100),
         quantity                    varchar2(100),
@@ -25,3 +26,21 @@ create table mts_tastytrade_tran_stg
 	   	constraint mts_tastytrade_tran_stg_pk  primary key (portfolio_id,line_number) using index     
    ) ;
 
+create table mts_tastytrade_acct_balance_stg 
+   (
+        portfolio_id                VARCHAR2(32) not null,
+        snapshot_date               varchar2(100),
+        account_number              varchar2(100), 
+        futures_margin_requirement  varchar2(100), 
+        total_settle_balance        varchar2(100), 
+        cash_settle_balance         varchar2(100),       
+        maintenance_requirement     varchar2(100),
+        pending_cash                varchar2(100),
+        bond_margin_requirement     varchar2(100),
+        long_bond_value             varchar2(100),
+        day_trade_excess            varchar2(100),
+        cash_available_to_withdraw  varchar2(100),
+        
+        --
+	   	constraint mts_tastytrade_acct_balance_pk  primary key (portfolio_id,snapshot_date) using index     
+   ) ;

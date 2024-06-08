@@ -13,7 +13,12 @@ create or replace package  pkg_mts_import_trade as
     );
 
     
-    procedure   load_import_trade_data_to_ws(p_import_log_id  mts_import_trade_log.id%type);
+    
+
+    procedure load_broker_trade_data(   p_user_id           mts_user.user_id%type,
+                                        p_broker_id        mts_broker.id%type,
+                                        p_portfolio_id     mts_portfolio.id%type,
+                                        p_import_log_id    out mts_import_trade_log.id%type );
 
     PROCEDURE   sync_trade_data(    p_user_id            mts_user.user_id%type,
                                     p_portfolio_id       mts_portfolio.id%type,
@@ -267,16 +272,112 @@ create or replace package body pkg_mts_import_trade as
         
     end load_import_trade_data_to_ws; 
 
+    
+    --------------------------------------------------------------------------------------
+    --    PROCEDURE : load_tastytrade_data
+    --------------------------------------------------------------------------------------
+    PROCEDURE   load_tastytrade_data(p_import_log_id        out mts_import_trade_log.id%type,
+                                     p_user_id              mts_user.user_id%type,
+                                     p_broker_id            mts_broker.id%type,
+                                     p_portfolio_id         mts_portfolio.id%type)
+    AS
+        pl_rec_count         number; 
+        pl_import_log_id         mts_import_trade_log.id%type;
+    BEGIN
+        -- Load Trade Transaction from TastyTrade Staging table to mts_import_trade_log/data table.
+        begin 
+            select count(*) into pl_rec_count
+            from   mts_tastytrade_tran_stg
+            where  portfolio_id = p_portfolio_id;
+
+            if (pl_rec_count > 0 ) then
+                -- create record in mts_trade_import_log table
+                create_import_log(
+                                    p_import_log_id => pl_import_log_id ,
+                                    p_user_id => p_user_id,
+                                    p_portfolio_id => p_portfolio_id,
+                                    p_broker_id => p_broker_id
+                );
+
+                insert into mts_import_trade_data ( import_trade_log_id, line_number,
+                                                col_1, col_2, col_3, col_4, col_5, col_6,
+                                                col_7, col_8, col_9, col_10, col_11, 
+                                                col_12, col_13, col_14, col_15, col_16 ,
+                                                col_17, col_18, col_19 )        
+
+                select  pl_import_log_id,line_number,
+                        account_number, symbol, instrument_type, underlying_symbol,transaction_type,transaction_sub_type,  
+                        description, action, quantity,price, executed_at, 
+                        value, value_effect, regulatory_fees, clearing_fees, net_value,
+                        commission,order_id ,currency
+                from   mts_tastytrade_tran_stg
+                where  portfolio_id = p_portfolio_id;
+
+                p_import_log_id := pl_import_log_id;
+
+                commit;
+            else  
+                p_import_log_id := null;
+            end if;
+        exception
+            when no_data_found then
+                null;
+        end;
+    
+    end load_tastytrade_data;
+
+    --------------------------------------------------------------------------------------
+    --    PROCEDURE : load_broker_trade_data
+    --------------------------------------------------------------------------------------
+    procedure load_broker_trade_data(   p_user_id           mts_user.user_id%type,
+                                        p_broker_id        mts_broker.id%type,
+                                        p_portfolio_id     mts_portfolio.id%type,
+                                        p_import_log_id    out mts_import_trade_log.id%type )
+
+    AS
+        pl_broker_rec       mts_broker%rowtype;
+        pl_import_log_id    mts_import_trade_log.id%type;
+    BEGIN
+        
+        BEGIN
+                select  *
+                into    pl_broker_rec
+                from    mts_broker
+                where   id = p_broker_id;
+
+                if ( pl_broker_rec.id is null ) then
+                    raise_application_error(-20000, 'Broker is not set for auto sync.', true); 
+                end if;
+        EXCEPTION
+            when no_data_found then 
+                raise_application_error(-20000, 'Broker not found.', true);   
+        END;
+
+        
+        if ( lower(pl_broker_rec.broker_name) = 'tastytrade' ) THEN
+            load_tastytrade_data(   p_import_log_id => pl_import_log_id,
+                                    p_user_id => p_user_id,
+                                    p_broker_id => p_broker_id,
+                                    p_portfolio_id => pl_import_log_id) ;  
+        end if;
+       
+   
+        p_import_log_id := pl_import_log_id;
+        
+    END load_broker_trade_data;
+
+
     --------------------------------------------------------------------------------------
     --    PROCEDURE : sync_trade_data
     --------------------------------------------------------------------------------------
     PROCEDURE   sync_trade_data(    p_user_id            mts_user.user_id%type,
                                     p_portfolio_id       mts_portfolio.id%type,
+                                    p_token              varchar2,
                                     p_import_log_id      out mts_import_trade_log.id%type )
     AS  
         pl_import_log_id     mts_import_trade_log.id%type;
         pl_portfolio_rec     mts_portfolio%rowtype;
-        pl_rec_count         number;  
+         
     BEGIN
 
         BEGIN
@@ -296,59 +397,19 @@ create or replace package body pkg_mts_import_trade as
         -- Get Transaction from TastyTrade
         pkg_tastytrade_api.get_transaction(  p_portfolio_id => p_portfolio_id );
 
-        -- Load Trade Transaction from TastyTrade Staging table to mts_import_trade_log/data table.
-        begin 
-            select count(*) into pl_rec_count
-            from   mts_tastytrade_tran_stg
-            where  portfolio_id = p_portfolio_id;
+        load_broker_trade_data( p_user_id => p_user_id,
+                                p_broker_id => pl_portfolio_rec.broker_id,
+                                p_portfolio_id => p_portfolio_id,
+                                p_import_log_id => pl_import_log_id);
 
-            if (pl_rec_count > 0 ) then
-                -- create record in mts_trade_import_log table
-                create_import_log(
-                                    p_import_log_id => pl_import_log_id ,
-                                    p_user_id => p_user_id,
-                                    p_portfolio_id => p_portfolio_id,
-                                    p_broker_id => pl_portfolio_rec.broker_id
-                );
+        -- Move data from mts_import_trade_data table to mts_ws_trade ( Trade Workspace ) 
+        if ( pl_import_log_id is not null ) then
+            DBMS_OUTPUT.PUT_LINE('[pkg_mts_import_trade][sync_trade_data][pl_import_log_id] = ' || pl_import_log_id);
+            load_import_trade_data_to_ws(p_import_log_id => pl_import_log_id);
 
-                insert into mts_import_trade_data ( import_trade_log_id, line_number,
-                                                col_1, col_2, col_3, col_4, col_5, 
-                                                col_6, col_7, col_8, col_9, col_10, 
-                                                col_11, col_12, col_13, col_14, col_15 ,
-                                                col_16, col_17, col_18 )        
-
-                select  pl_import_log_id,line_number,
-                        account_number, symbol, instrument_type, underlying_symbol,transaction_type, 
-                        description, action, quantity,price, executed_at, 
-                        value, value_effect, regulatory_fees, clearing_fees, net_value,
-                        commission,order_id ,currency
-                from   mts_tastytrade_tran_stg
-                where  portfolio_id = p_portfolio_id;
-
-            
-                -- Move data from mts_import_trade_data table to mts_ws_trade ( Trade Workspace ) 
-                DBMS_OUTPUT.PUT_LINE('[pkg_mts_import_trade][sync_trade_data][pl_import_log_id] = ' || pl_import_log_id);
-                load_import_trade_data_to_ws(p_import_log_id => pl_import_log_id);
-
-                -- Finalize Trade.
-                pkg_mts_ws_trade.finalize_trade(p_user_id=> p_user_id);
-
-                p_import_log_id := pl_import_log_id;
-
-                commit;
-            else  
-                p_import_log_id := 0;
-            end if;
-        exception
-            when no_data_found then
-                null;
-        end;
-
-        
-
-        
-
-        
+            -- Finalize Trade.
+            pkg_mts_ws_trade.finalize_trade(p_user_id=> p_user_id);
+        end if;
 
     END sync_trade_data;
 

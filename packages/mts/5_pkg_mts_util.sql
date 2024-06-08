@@ -9,10 +9,10 @@ create or replace package pkg_mts_util as
                                 p_open_price    number, 
                                 p_close_qty     number, 
                                 p_close_price number) return number;
-    function get_profit_loss_percent(   p_open_qty      number, 
-                                        p_open_price    number, 
-                                        p_close_qty     number, 
+
+    function get_profit_loss_percent(   p_open_price    number, 
                                         p_close_price number) return number;
+
     function get_unit_price(    p_qty      number, 
                                 p_price    number) return number;
 
@@ -100,24 +100,20 @@ create or replace package body pkg_mts_util as
 
     end get_profit_loss;
 
-    function get_profit_loss_percent(   p_open_qty      number, 
-                                        p_open_price    number, 
-                                        p_close_qty     number, 
+    function get_profit_loss_percent(   p_open_price    number, 
                                         p_close_price number) return number
     as
         pl_return       number;
         pl_profit_loss  number;
-        pl_open_price   number;
+        
     begin
-        if ( abs(nvl(p_open_qty,0)) != abs(nvl(p_close_qty,0)) ) then
-            pl_return := null;
         
-        else
-            pl_profit_loss  :=  nvl(p_open_price,0) + nvl(p_close_price,0);
-            pl_return := pl_profit_loss/nvl(p_open_price,1) * 100;
-
+        if  nvl(p_open_price,0) = 0 then   
+           return null;        
         end if;
-        
+
+        pl_profit_loss  :=  nvl(p_open_price,0) + nvl(p_close_price,0);
+        pl_return := round(pl_profit_loss/p_open_price * 100,2);        
         return pl_return;
 
     end get_profit_loss_percent;

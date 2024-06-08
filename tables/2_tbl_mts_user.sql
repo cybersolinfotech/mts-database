@@ -17,16 +17,17 @@ create table mts_role
 
 --table =>   mts_user ---
 create table mts_user 
-   (	user_id                 varchar2(30 char) not null , 
+   (	user_id					VARCHAR2(32) DEFAULT sys_guid() not null,
+   		login_id                varchar2(60 char) not null,  
 		first_name              varchar2(60 char), 
 		last_name               varchar2(60 char), 
 		email                   varchar2(60 char), 
 		phone                   varchar2(20), 		
 		profile_picture         blob, 
-		mbr_type_id             number(1,0) default 1, 
+		mbr_type_id             VARCHAR2(32), 
 		theme                   varchar2(20) default lower('dark'), 
-		dflt_portfolio_id       number(38,0), 
-		plan_id         		number, 
+		dflt_portfolio_id       VARCHAR2(32), 
+		plan_id         		VARCHAR2(32), 
 		plan_enroll_date     	timestamp (6),
       	pay_customer_id         varchar2(64) ,
 		role_id					varchar2(20) not null,
@@ -41,6 +42,8 @@ create table mts_user
 		constraint mts_user_fk1 foreign key (mbr_type_id)  references mts_mbr_type(id) , 
 		constraint mts_user_fk2 foreign key (role_id)  references mts_role(role_id) , 
 		--
+		constraint mts_user_unq1 unique (login_id)  , 
+		--
 	   	constraint mts_user_pk  primary key (user_id) using index  
    ) ;
 /
@@ -50,7 +53,7 @@ create table mts_user
 --table =>   mts_pro_trader
 create table mts_pro_trader
 	(
-		pro_trader_id 	        varchar2(30 char) not null, 
+		pro_trader_id 	        VARCHAR2(32) DEFAULT sys_guid()  not null, 
 	    amt_to_start       		number(30,2) default 0 not null ,
 		expected_return			number(10,2) ,
 		about_me                varchar2(4000), 
@@ -75,9 +78,9 @@ create table mts_pro_trader
 
 --table =>   mts_pro_trader_member
 create table mts_pro_trader_member 
-   (	pro_trader_id 	           	varchar2(30 char) not null , 
-	    member_id 					varchar2(30 char) not null ,
-		alert_type_id 				number(1,0) default 0 not null ,
+   (	pro_trader_id 	           	VARCHAR(32) not null , 
+	    member_id 					VARCHAR(32) not null ,
+		alert_type_id 				VARCHAR(32) not null ,
       	active                      number(1,0) default 1 not null ,	 
 	   	created_by       			varchar2(100) default coalesce(sys_context('apex$session','app_user'),user) not null,            
         create_date     			timestamp (6) default current_timestamp, 
@@ -98,7 +101,7 @@ create table mts_pro_trader_member
 
 --table =>   mts_api_vendor_token
 create table mts_api_vendor_token(
-	user_id					varchar2(60) not null,
+	user_id					VARCHAR(32) not null,
 	vendor_code				varchar2(20) not null,
 	token					varchar2(128),
 	issued_at 				timestamp default current_timestamp not null ,

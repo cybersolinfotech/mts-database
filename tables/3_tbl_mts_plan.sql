@@ -1,9 +1,5 @@
-
-
-
 CREATE TABLE mts_product (
-    id                              NUMBER(38,0)     default mts_product_seq.nextval  not null,
-    user_id                         VARCHAR2(30)    not null,
+    id                              VARCHAR2(32) DEFAULT sys_guid()  not null,
     name                            VARCHAR2(256)    not null,
     description                     VARCHAR2(4000),
     pay_product_id                  VARCHAR2(64),
@@ -17,7 +13,7 @@ CREATE TABLE mts_product (
     --
     --
     CONSTRAINT mts_product_unq1 UNIQUE (pay_product_id),
-    constraint mts_product_unq2 unique ( user_id,name),    
+    constraint mts_product_unq2 unique ( name),    
     --    
     CONSTRAINT mts_product_pk PRIMARY KEY (id)
 );
@@ -25,8 +21,8 @@ CREATE TABLE mts_product (
 
 --drop table mts_plan;
 CREATE TABLE mts_plan (
-    id                              NUMBER(38,0)        default mts_plan_seq.nextval  not null,
-    product_id                      NUMBER(38,0)       not null,
+    id                              VARCHAR2(32) DEFAULT sys_guid()  not null,
+    product_id                      VARCHAR2(32) not null,
     name                            VARCHAR2(256)    not null,
     description                     VARCHAR2(4000),
     amount                          number(10,2)    not null,
@@ -57,8 +53,8 @@ CREATE TABLE mts_plan (
 
 
 CREATE TABLE mts_shopping_cart (
-    cart_id                     NUMBER(38,0)     default mts_shopping_cart_seq.nextval  not null,
-    user_id                     varchar2(30)      NOT NULL,
+    cart_id                     VARCHAR2(32) DEFAULT sys_guid() not null,
+    user_id                     VARCHAR2(32) default coalesce(sys_context('apex$session','app_user'),user)    NOT NULL,
     is_closed                   number(1,0)     default 1 not null ,
     active                      number(1,0)     default 1 not null ,
     created_by                  varchar2(100)    default coalesce(sys_context('apex$session','app_user'),user) not null,            
@@ -76,8 +72,8 @@ CREATE TABLE mts_shopping_cart (
 /
 
 CREATE TABLE mts_shopping_cart_item (
-    cart_id                         NUMBER(38,0)     NOT NULL,
-    plan_id                         NUMBER(38,0)     NOT NULL,
+    cart_id                         VARCHAR2(32)     NOT NULL,
+    plan_id                         VARCHAR2(32)     NOT NULL,
     amount                          NUMBER(16,4)     NOT NULL,
     active                          number(1,0)     default 1 not null ,
     created_by                      varchar2(100)    default coalesce(sys_context('apex$session','app_user'),user) not null,            
@@ -97,10 +93,10 @@ CREATE TABLE mts_shopping_cart_item (
 
 
 CREATE TABLE mts_pay_request (
-    request_id                      NUMBER(38,0)     default mts_pay_request_seq.nextval   NOT NULL,
-    cart_id                         NUMBER(38,0)     NOT NULL,
-    user_id                         varchar2(30)     NOT NULL,
-    session_id                      NUMBER(38,0)     default sys_context('apex$session', 'app_session'),
+    request_id                      VARCHAR2(32) default sys_guid()  NOT NULL,
+    cart_id                         VARCHAR2(32)     NOT NULL,
+    user_id                         VARCHAR2(32)  default coalesce(sys_context('apex$session','app_user'),user)   NOT NULL,
+    session_id                      NUMBER(38,0)  default sys_context('apex$session', 'app_session'),
     api_token                       VARCHAR2(64),
     api_response                    CLOB,
     is_success                      number(1,0) default 0 not null ,

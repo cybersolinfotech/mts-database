@@ -23,11 +23,14 @@ as
     --------------------------------------------------------------------------------------
     --    API : PRODUCT
     --------------------------------------------------------------------------------------
+
+    
+
     procedure create_product (  p_pay_product_id       out mts_product.pay_product_id%type,
                                 p_name                 mts_product.name%type,
                                 p_description          mts_product.description%type);
 
-    procedure update_product (  p_pay_product_id       out mts_product.pay_product_id%type,
+    procedure update_product (  p_pay_product_id       in mts_product.pay_product_id%type,
                                 p_name                 mts_product.name%type,
                                 p_description          mts_product.description%type);
 
@@ -36,7 +39,7 @@ as
     --------------------------------------------------------------------------------------
     --    API : PLAN
     --------------------------------------------------------------------------------------
-    procedure create_plan (     p_pay_plan_id       out mts_plan.pay_plan_id%type,
+    procedure create_plan (     p_pay_plan_id           out mts_plan.pay_plan_id%type,
                                 p_product_id            mts_plan.product_id%type,
                                 p_name                  mts_plan.name%type,
                                 p_amount                mts_plan.amount%type,
@@ -62,10 +65,10 @@ end  pkg_stripe_api;
 create or replace package body pkg_stripe_api
 as
 
-    pl_private_key  constant    mts_app_cntrl_value.str_value%type  := pkg_mts_app_setup.get_app_cntrl_str_value(  p_app_cntrl_name  => 'STRIPE_API',
+    pl_private_key  constant    mts_app_cntrl_value.str_value%type  := pkg_mts_app_util.get_app_cntrl_str_value(  p_app_cntrl_name  => 'STRIPE_API',
                                                                                                                                 p_key => 'PRIVATE_KEY');   
 
-    pl_base_url     constant    mts_app_cntrl_value.str_value%type  := pkg_mts_app_setup.get_app_cntrl_str_value(  p_app_cntrl_name  => 'STRIPE_API',
+    pl_base_url     constant    mts_app_cntrl_value.str_value%type  := pkg_mts_app_util.get_app_cntrl_str_value(  p_app_cntrl_name  => 'STRIPE_API',
                                                                                                              p_key => 'BASE_URL') || '/v1';  
 
     pl_billing_scheme constant  varchar2(100) := 'per_unit';         
@@ -81,12 +84,12 @@ as
         p_name                  varchar2
     )
     as
-        pl_response         clob;
-        pl_param_name         apex_application_global.vc_arr2;
-        pl_param_value       apex_application_global.vc_arr2;
-        pl_token            varchar2(60);
-        pl_url              varchar2(1000);
-        pl_index            number := 1;
+        pl_response             clob;
+        pl_param_name           apex_application_global.vc_arr2;
+        pl_param_value          apex_application_global.vc_arr2;
+        pl_token                varchar2(60);
+        pl_url                  varchar2(1000);
+        pl_index                number := 1;
     begin
         pl_url := pl_base_url || '/customers';
         dbms_output.put_line('[create_customer].[pl_url] = ' || pl_url);
@@ -115,11 +118,11 @@ as
                         p_parm_name  => pl_param_name,
                         p_parm_value => pl_param_value);
 
-
+        
         dbms_output.put_line('[create_customer].[pl_response] = ' || pl_response);
 
         apex_json.parse(pl_response);
-        
+
         p_pay_customer_id :=  apex_json.get_varchar2(p_path => 'id');
 
         dbms_output.put_line('[create_customer].[p_pay_customer_id] = ' || p_pay_customer_id);
@@ -133,12 +136,12 @@ as
         p_name                  varchar2
     )
     as
-        pl_response         clob;
-        pl_param_name         apex_application_global.vc_arr2;
-        pl_param_value       apex_application_global.vc_arr2;
-        pl_token            varchar2(60);
-        pl_url              varchar2(1000);
-        pl_index            number := 1;
+        pl_response             clob;
+        pl_param_name           apex_application_global.vc_arr2;
+        pl_param_value          apex_application_global.vc_arr2;
+        pl_token                varchar2(60);
+        pl_url                  varchar2(1000);
+        pl_index                number := 1;
     begin
         pl_url := pl_base_url || '/customers/' || p_pay_customer_id;
         dbms_output.put_line('[update_customer].[pl_url] = ' || pl_url);
@@ -201,6 +204,8 @@ as
     --------------------------------------------------------------------------------------
     --    API : PRODUCT
     --------------------------------------------------------------------------------------
+
+
     -- create product --
     procedure create_product (  p_pay_product_id       out mts_product.pay_product_id%type,
                                 p_name                 mts_product.name%type,
@@ -253,7 +258,7 @@ as
     end create_product;
     
     -- update product --
-    procedure update_product (  p_pay_product_id       out mts_product.pay_product_id%type,
+    procedure update_product (  p_pay_product_id       in  mts_product.pay_product_id%type,
                                 p_name                 mts_product.name%type,
                                 p_description          mts_product.description%type)
     as
@@ -333,13 +338,13 @@ as
                                 p_interval              mts_plan.interval%type,
                                 p_interval_count        mts_plan.interval_count%type)
     as 
-        pl_pay_product_id    mts_product.pay_product_id%type  ; 
         pl_response         clob;
         pl_param_name       apex_application_global.vc_arr2;
         pl_param_value      apex_application_global.vc_arr2;
         pl_token            varchar2(60);
         pl_url              varchar2(1000);
         pl_index            number := 1;
+        pl_pay_product_id   mts_product.pay_product_id%type;
     begin
         pl_url := pl_base_url || '/plans';
         dbms_output.put_line('[create_plan].[pl_url] = ' || pl_url);
@@ -351,10 +356,9 @@ as
         dbms_output.put_line('[create_plan].[p_interval] = ' || p_interval);      
         dbms_output.put_line('[create_plan].[p_interval_count] = ' || p_interval_count);  
 
-        --get pay_product_id 
-        pl_pay_product_id := pkg_mts_plan.get_pay_product_id(p_product_id => p_product_id);
-
-
+        -- get pay_product_id
+        pl_pay_product_id := pkg_mts_plan.get_pay_product_id(p_product_id => p_product_id)  ;
+        dbms_output.put_line('[create_plan].[pl_pay_product_id] = ' || pl_pay_product_id);  
         -- build param request      
 
         pl_param_name(pl_index)  := 'product';
@@ -364,9 +368,17 @@ as
         pl_param_name(pl_index)  := 'nickname';
         pl_param_value(pl_index) := p_name;
         pl_index := pl_index + 1;
-
-        pl_param_name(pl_index)  := 'amount_decimal';
+/*
+        pl_param_name(pl_index)  := 'amount';
         pl_param_value(pl_index) := p_amount;
+        pl_index := pl_index + 1;
+*/
+        pl_param_name(pl_index)  := 'amount_decimal';
+        pl_param_value(pl_index) := replace(p_amount,'.','');
+        pl_index := pl_index + 1;
+
+        pl_param_name(pl_index)  := 'currency';
+        pl_param_value(pl_index) := p_currency;
         pl_index := pl_index + 1;
 
         pl_param_name(pl_index)  := 'billing_scheme';
@@ -432,7 +444,11 @@ as
         pl_index := pl_index + 1;
 
         pl_param_name(pl_index)  := 'amount_decimal';
-        pl_param_value(pl_index) := p_amount;
+        pl_param_value(pl_index) := replace(p_amount,'.','');
+        pl_index := pl_index + 1;
+
+        pl_param_name(pl_index)  := 'currency';
+        pl_param_value(pl_index) := p_currency;
         pl_index := pl_index + 1;
 
         pl_param_name(pl_index)  := 'billing_scheme';

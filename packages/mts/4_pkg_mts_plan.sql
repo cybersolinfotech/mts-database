@@ -103,7 +103,7 @@ as
             where   user_id = p_user_id;
         exception
             when no_data_found then
-                pl_pay_customer_id := 0;
+                pl_pay_customer_id := null;
         end;
 
         return pl_pay_customer_id;
@@ -122,7 +122,7 @@ as
             where   id = p_product_id;
         exception
             when no_data_found then
-                pl_pay_product_id := 0;
+                pl_pay_product_id := null;
         end;
 
         return pl_pay_product_id;
@@ -141,7 +141,7 @@ as
             where   id = p_plan_id;
         exception
             when no_data_found then
-                pl_pay_plan_id := 0;
+                pl_pay_plan_id := null;
         end;
         
         return pl_pay_plan_id;
@@ -162,8 +162,7 @@ as
             select  *
             into    pl_rec
             from    mts_product p
-            where   p.user_id = get_user_id()
-            and     lower(p.name) = lower(p_name);
+            where   lower(p.name) = lower(p_name);
             --
             if pl_rec.id is not null then
                 raise_application_error(-20000, 'pkg_mts_plan.create_product: product already exists.', true);

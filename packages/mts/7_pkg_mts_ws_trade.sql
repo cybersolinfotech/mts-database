@@ -4,9 +4,12 @@
  create or replace package pkg_mts_ws_trade as
 
     function  get_seq_no_nextval(p_user_id            mts_ws_trade.user_id%type)  return number;
+
     function get_action_code(   p_portfolio_id  mts_trade_tran.portfolio_id%type,
                                 p_trade_code    mts_trade_tran.trade_code%type) return mts_trade_action.code%type;
+
     procedure truncate_ws_trade(p_user_id             mts_ws_trade.user_id%type);
+    
     procedure build_ws_trade_from_Strategy(p_user_id        mts_ws_trade.user_id%type,
                                            p_portfolio_id   mts_portfolio.id%type,
                                            p_strategy_id    mts_strategy.id%type);

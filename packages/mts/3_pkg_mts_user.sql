@@ -12,8 +12,9 @@ create or replace package pkg_mts_user as
     function is_in_role(p_user_id           mts_user.user_id%type, 
                         p_role_id           mts_user.role_id%type
                        ) return number;
+    function get_user_id(p_email mts_user.email%type) return mts_user.user_id%type;
     function get_user_role(p_user_id        mts_user.user_id%type ) return mts_user.role_id%type;
-    function get_dflt_portfolio_id(p_user_id        mts_user.user_id%type ) return number;
+    function get_dflt_portfolio_id(p_user_id        mts_user.user_id%type ) return mts_user.dflt_portfolio_id%type;
    
     function get_user_theme(p_user_id               mts_user.user_id%type ) return varchar2;
     function get_mbr_type_id(p_user_id               mts_user.user_id%type ) return mts_user.mbr_type_id%type;
@@ -23,22 +24,22 @@ create or replace package pkg_mts_user as
                                 p_user_id       mts_user.user_id%type,
                                 p_theme         mts_user.theme%type default 'dark');
 
-    procedure register_user( p_user_id      mts_user.user_id%type,
-                             p_email        mts_user.email%type,
+    procedure register_user( p_user_id      in out mts_user.user_id%type,
+                             p_login_id        mts_user.login_id%type,
                              p_theme        mts_user.theme%type default 'dark',
-                             p_role_id      mts_user.role_id%type default 'DEMO-USER')  ;
+                             p_role_id      mts_user.role_id%type default 'DEMO-USER') ;
 
     procedure activate_user(p_user_id   mts_user.user_id%type);
                              
     procedure deactivate_user(  p_user_id   mts_user.user_id%type);
 
 
-    procedure update_user   (   p_user_id                   mts_user.user_id%type,
+    procedure update_user   (   p_user_id                  mts_user.user_id%type,
                                 p_first_name                mts_user.first_name%type        default null,
                                 p_last_name                 mts_user.last_name%type         default null,
                                 p_email                     mts_user.email%type             default null,
                                 p_phone                     mts_user.phone%type             default null,
-                                p_profile_pic               mts_user.profile_picture%type       default null,
+                                p_profile_pic               mts_user.profile_picture%type   default null,
                                 p_mbr_type_id               mts_user.mbr_type_id%type       default null,
                                 p_theme                     mts_user.theme%type             default null,
                                 p_dflt_portfolio_id         mts_user.dflt_portfolio_id%type default null,
@@ -52,10 +53,10 @@ create or replace package pkg_mts_user as
     /***************************************************************************
         API:  PRO_TRADER
      ***************************************************************************/
-    procedure register_pro_trader (  p_pro_trader_id     mts_pro_trader_member.pro_trader_id%type);
-    procedure activate_pro_trader(p_pro_trader_id   mts_pro_trader.pro_trader_id%type);
+    procedure register_pro_trader ( p_pro_trader_id          mts_pro_trader.pro_trader_id%type);
+    procedure activate_pro_trader ( p_pro_trader_id          mts_pro_trader.pro_trader_id%type);
                              
-    procedure deactivate_pro_trader(  p_pro_trader_id   mts_pro_trader.pro_trader_id%type);
+    procedure deactivate_pro_trader(  p_pro_trader_id       mts_pro_trader.pro_trader_id%type);
 
     procedure update_pro_trader(    p_pro_trader_id         mts_pro_trader.pro_trader_id%type,
                                     p_amt_to_start          mts_pro_trader.amt_to_start%type    default null,
@@ -98,6 +99,21 @@ create or replace package body pkg_mts_user as
     /***************************************************************************
          API:  USER
      ***************************************************************************/
+    function get_user_id(p_email mts_user.email%type) return mts_user.user_id%type
+    is
+        pl_return   mts_user.user_id%type;
+    begin
+        begin
+            select  user_id
+            into    pl_return
+            from    mts_user
+            where   lower(email) = lower(p_email);           
+        exception
+            when no_data_found then
+               pl_return := null; 
+        end;   
+        return pl_return;
+    end get_user_id; 
 
     -- function => is_user_exists
     function is_user_exists(p_user_id       mts_user.user_id%type) return number
@@ -188,7 +204,7 @@ create or replace package body pkg_mts_user as
     end is_in_role;
 
     
-    -- function => get_dflt_portfolio_id
+    -- function => get_user_role
     function get_user_role(p_user_id        mts_user.user_id%type ) return mts_user.role_id%type
     is
         pl_return mts_user.role_id%type;
@@ -207,9 +223,9 @@ create or replace package body pkg_mts_user as
     end get_user_role; 
 
     -- function => get_dflt_portfolio_id
-    function get_dflt_portfolio_id(p_user_id        mts_user.user_id%type ) return number
+    function get_dflt_portfolio_id(p_user_id        mts_user.user_id%type ) return mts_user.dflt_portfolio_id%type
     is
-        pl_return number;
+        pl_return mts_user.dflt_portfolio_id%type;
     begin
         begin
             select  dflt_portfolio_id
@@ -218,7 +234,7 @@ create or replace package body pkg_mts_user as
             where   user_id = p_user_id;
         exception
             when no_data_found then
-               pl_return := 0; 
+               pl_return := null; 
         end;
 
         return pl_return;
@@ -255,7 +271,7 @@ create or replace package body pkg_mts_user as
 
         exception
             when no_data_found then
-               pl_return := 1; 
+               pl_return := null; 
         end; 
         return pl_return;
     end;
@@ -305,24 +321,28 @@ create or replace package body pkg_mts_user as
 
     
     -- procedure => register_user
-    procedure register_user( p_user_id      mts_user.user_id%type,
-                             p_email        mts_user.email%type,
+    procedure register_user( p_user_id      in out mts_user.user_id%type,
+                             p_login_id     mts_user.login_id%type,
                              p_theme        mts_user.theme%type default 'dark',
                              p_role_id      mts_user.role_id%type default 'DEMO-USER')  
     as
-        pl_rec_count number;
-    begin         
-        select  count(*)
-        into    pl_rec_count
-        from    mts_user 
-        where   user_id = p_user_id;
+        pl_rec        mts_user%rowtype;
+    begin 
+        begin        
+            select  *
+            into    pl_rec
+            from    mts_user 
+            where   lower(login_id) = lower(p_login_id);
 
-        if ( pl_rec_count = 0 ) then 
-            begin 
-                insert into mts_user ( user_id,email,theme,role_id)
-                values (p_user_id,p_email,p_theme,p_role_id) ;
-            end;
-        end if;
+            p_user_id := pl_rec.user_id;
+        exception
+            when no_data_found  then   
+                begin 
+                    insert into mts_user ( login_id, email,theme,role_id)
+                    values (p_login_id,p_login_id,p_theme,p_role_id) returning user_id into p_user_id;
+                end; 
+        end;  
+       
 
     end register_user;
 
@@ -391,7 +411,7 @@ create or replace package body pkg_mts_user as
         API:  PRO_TRADER
      ***************************************************************************/
     -- procedure => register_pro_trader
-    procedure register_pro_trader (  p_pro_trader_id     mts_pro_trader_member.pro_trader_id%type)
+    procedure register_pro_trader (  p_pro_trader_id     mts_pro_trader.pro_trader_id%type)
     as
         pl_rec_count number;
     begin         
@@ -430,7 +450,7 @@ create or replace package body pkg_mts_user as
 
         begin
             update  mts_pro_trader
-            set     active = 1
+            set     active = 0
             where   pro_trader_id = p_pro_trader_id ;
         end;
 

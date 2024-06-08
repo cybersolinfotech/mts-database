@@ -33,30 +33,7 @@ create or replace package pkg_mts_trade as
             p_source_order_id       in  mts_trade_tran.source_order_id%type  default null
         );
 
-    procedure merge_trade_vue(
-            p_trade_vue_id      in  out mts_trade_vue.id%type,
-            p_user_id           in mts_trade_vue.user_id%type,
-            p_portfolio_id      in  mts_trade_vue.portfolio_id%type     default null,
-            p_symbol            in  mts_trade_vue.symbol%type           default null,
-            p_exp_date          in  mts_trade_vue.exp_date%type         default null,
-            p_order_type        in  mts_trade_vue.order_type%type       default null,
-            p_strike            in  mts_trade_vue.strike%type           default null,
-            p_trade_code        in  mts_trade_vue.trade_code%type       default null,
-            p_open_action_code       in  mts_trade_vue.open_action_code%type      default null,
-            p_open_date               in  mts_trade_vue.open_date%type              default null,
-            p_open_qty               in  mts_trade_vue.open_qty%type              default null,
-            p_open_price             in  mts_trade_vue.open_price%type            default null,
-            p_open_commission        in  mts_trade_vue.open_commission%type       default null,
-            p_open_fees              in  mts_trade_vue.open_fees%type             default null,
-            p_close_action_code               in  mts_trade_vue.close_action_code%type              default null,
-            p_close_date               in  mts_trade_vue.close_date%type              default null,
-            p_close_qty               in  mts_trade_vue.close_qty%type              default null,
-            p_close_price             in  mts_trade_vue.close_price%type            default null,
-            p_close_commission        in  mts_trade_vue.close_commission%type       default null,
-            p_close_fees              in  mts_trade_vue.close_fees%type             default null,
-            p_group_name        in  mts_trade_vue.group_name%type       default null,
-            p_notes             IN  mts_trade_vue.notes%TYPE        default NULL       
-        );
+    
 
 end pkg_mts_trade;
 /
@@ -229,100 +206,7 @@ end pkg_mts_trade;
 
     end merge_trade_tran;
 
-    /***************************************************************************
-        procedure: merge_trade_vue
-     ***************************************************************************/
-    procedure merge_trade_vue(
-            p_trade_vue_id      in  out mts_trade_vue.id%type,
-            p_user_id           in mts_trade_vue.user_id%type,
-            p_portfolio_id      in  mts_trade_vue.portfolio_id%type     default null,
-            p_symbol            in  mts_trade_vue.symbol%type           default null,
-            p_exp_date          in  mts_trade_vue.exp_date%type         default null,
-            p_order_type        in  mts_trade_vue.order_type%type       default null,
-            p_strike            in  mts_trade_vue.strike%type           default null,
-            p_trade_code        in  mts_trade_vue.trade_code%type       default null,
-            p_open_action_code       in  mts_trade_vue.open_action_code%type      default null,
-            p_open_date               in  mts_trade_vue.open_date%type              default null,
-            p_open_qty               in  mts_trade_vue.open_qty%type              default null,
-            p_open_price             in  mts_trade_vue.open_price%type            default null,
-            p_open_commission        in  mts_trade_vue.open_commission%type       default null,
-            p_open_fees              in  mts_trade_vue.open_fees%type             default null,
-            p_close_action_code               in  mts_trade_vue.close_action_code%type              default null,
-            p_close_date               in  mts_trade_vue.close_date%type              default null,
-            p_close_qty               in  mts_trade_vue.close_qty%type              default null,
-            p_close_price             in  mts_trade_vue.close_price%type            default null,
-            p_close_commission        in  mts_trade_vue.close_commission%type       default null,
-            p_close_fees              in  mts_trade_vue.close_fees%type             default null,
-            p_group_name        in  mts_trade_vue.group_name%type       default null,
-            p_notes             IN  mts_trade_vue.notes%TYPE        default NULL       
-        )
-    is
-
-        pl_rec_count        number;
-        pl_rec              mts_trade_vue%rowtype;
-    begin
-
-            
-            begin
-                select  * 
-                into    pl_rec
-                from    mts_trade_vue
-                where   id  = p_trade_vue_id; 
-
-                update  mts_trade_vue
-                        set     portfolio_id    = nvl(p_portfolio_id,portfolio_id),
-                                symbol          = nvl(p_symbol,symbol),
-                                exp_date        = nvl(p_exp_date,exp_date),
-                                order_type      = nvl(p_order_type,order_type),
-                                strike          = nvl(p_strike,strike),
-                                trade_code      = nvl(p_trade_code,trade_code),
-                                open_action_code  = nvl(p_open_action_code,open_action_code),
-                                open_date       = nvl(p_open_date,open_date),
-                                open_qty        = nvl(p_open_qty,open_qty),
-                                open_price      = nvl(p_open_price,open_price),
-                                open_commission = nvl(p_open_commission,open_commission),
-                                open_fees       = nvl(p_open_fees,open_fees),
-                                close_action_code      = nvl(p_close_action_code,close_action_code),
-                                close_date      = nvl(p_close_date,close_date),
-                                close_qty       = nvl(p_close_qty,close_qty),
-                                close_price     = nvl(p_close_price,close_price),
-                                close_commission = nvl(p_close_commission,close_commission),
-                                close_fees      = nvl(p_close_fees,close_fees),
-                                notes           = nvl(p_notes,notes)  
-                        where   id  = p_trade_vue_id; 
-
-            EXCEPTION
-                when no_data_found THEN
-                    pl_rec.id              := mts_trade_vue_seq.nextval;
-                    pl_rec.user_id         := p_user_id;
-                    pl_rec.portfolio_id    := p_portfolio_id;
-                    pl_rec.symbol          := p_symbol;
-                    pl_rec.exp_date        := p_exp_date;
-                    pl_rec.order_type      := p_order_type;
-                    pl_rec.strike          := p_strike;
-                    pl_rec.trade_code      := p_trade_code;
-                    pl_rec.open_action_code     := p_open_action_code;
-                    pl_rec.open_date       := p_open_date;
-                    pl_rec.open_qty        := p_open_qty;
-                    pl_rec.open_price      := p_open_price;
-                    pl_rec.open_commission := p_open_commission;
-                    pl_rec.open_fees       := p_open_fees;
-                    pl_rec.close_action_code     := p_close_action_code;
-                    pl_rec.close_date      := p_close_date;
-                    pl_rec.close_qty       := p_close_qty;
-                    pl_rec.close_price     := p_close_price;
-                    pl_rec.close_commission := p_close_commission;
-                    pl_rec.close_fees       := p_close_fees;
-                    pl_rec.active           := 1;
-                    pl_rec.created_by       := coalesce(sys_context('apex$session','app_user'),user);
-                    pl_rec.create_date       := current_timestamp;
-                    pl_rec.notes           := p_notes;
-
-                    insert into mts_trade_vue values pl_rec returning id into p_trade_vue_id;
-                
-            end;
-
-    end merge_trade_vue;
+    
 
 end pkg_mts_trade;
 /

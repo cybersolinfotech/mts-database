@@ -6,7 +6,7 @@ begin
 	
 	if inserting then
         
-		if lower(:new.tran_type) = 'deposit' then
+		if lower(:new.tran_type) in ('deposit','dividend','credit_interest') then
 			:new.amount := abs(:new.amount);
 		else
 			:new.amount := (abs(:new.amount)*-1);
@@ -23,7 +23,7 @@ begin
         :new.update_date := current_timestamp;	
 		:new.updated_by := coalesce(sys_context('apex$session','app_user'),user); 
 		
-		if lower(:new.tran_type) = 'deposit' then
+		if lower(:new.tran_type) in ('deposit','dividend','credit_interest') then
 			:new.amount := abs(:new.amount);
 		else
 			:new.amount := (abs(:new.amount)*-1);

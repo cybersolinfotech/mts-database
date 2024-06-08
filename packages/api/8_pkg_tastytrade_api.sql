@@ -9,9 +9,16 @@ as
                                             p_key => 'BASE_URL');
 
     
-
+    function get_session_token( p_user_id       mts_user.user_id%type,
+                                p_login         varchar2 ,
+                                p_password      varchar2  ,
+                                p_remember_me   boolean default true                              
+                              ) return mts_api_vendor_token.token%type;
     
-    procedure  get_transaction( p_portfolio_id      mts_portfolio.id%type );
+    procedure  get_transaction( p_token             mts_api_vendor_token.token%type, 
+                                p_portfolio_id      mts_portfolio.id%type);
+
+    procedure   get_account_snapshot(p_portfolio_id mts_portfolio.id%type);
 
     
     /*
@@ -40,7 +47,7 @@ as
     
     pl_full_url             varchar2(1000);
     pl_vendor_code          mts_api_vendor.vendor_code%type     := 'TASTYTRADE';
-    pl_log_msg              mts_app_process_log.log_msg%type;
+    pl_log_msg              mts_app_process_log.msg_str%type;
     pl_newline              char(1) := chr(10);
 
 
@@ -109,28 +116,28 @@ as
                                         p_issued_at => current_timestamp);
 
         pl_log_msg  := pl_log_msg || '[get_session_token].[pl_token] = ' || pl_token || pl_newline;
-
+        
         return pl_token;
     EXCEPTION
         when OTHERS THEN
             pl_log_msg := pl_log_msg || SQLCODE || SUBSTR(SQLERRM, 1, 64);
             PKG_MTS_APP_UTIL.LOG_MESSAGE (
                                             P_PACKAGE_NAME	=> 'PKG_TASTYTRADE_API',
-	                                        P_PROCESS_NAME	=> 'GET_SESSION_TOKEN',
-	                                        P_LOG_LEVEL	=> PKG_MTS_APP_UTIL.ERROR,
-	                                        P_LOG_MSG 	=> pl_log_msg);
+	                                        P_PROCESS_NAME	=> 'get_session_token',
+	                                        P_MSG_STR 	=> SQLCODE || ' - ' || SUBSTR(SQLERRM, 1, 250));
                                             
-            raise_application_error(-20000, SQLCODE || SUBSTR(SQLERRM, 1, 64), true);
+            raise_application_error(-20000, SQLCODE || SUBSTR(SQLERRM, 1, 250), true);
             
     end get_session_token;
 
     --------------------------------------------------------------------------------------
     --    get_transactions
     --------------------------------------------------------------------------------------
-    procedure  get_transaction( p_portfolio_id      mts_portfolio.id%type    
+    procedure  get_transaction( p_token             mts_api_vendor_token.token%type, 
+                                p_portfolio_id      mts_portfolio.id%type
+
                               )
     as
-        pl_token                mts_api_vendor_token.token%type;
         pl_start_at             TIMESTAMP ;
         pl_end_at               TIMESTAMP := CURRENT_TIMESTAMP;
         pl_portfolio_rec        mts_portfolio%rowtype;
@@ -161,19 +168,13 @@ as
         ---- DELETE PREVIOUS LOADED TRANSACTIONS ---
         DELETE FROM  mts_tastytrade_tran_stg WHERE portfolio_id = p_portfolio_id;
 
-        ---- GET API TOKEN ---
-        pl_token := get_session_token(  p_user_id => pl_portfolio_rec.user_id,
-                                        p_login   => pl_portfolio_rec.broker_login ,
-                                        p_password  => pl_portfolio_rec.broker_password  );
-        
-        
         ---- GET TRANSACTIONS ---
         pl_full_url  := g_url || 'accounts/' || pl_portfolio_rec.account_num || '/transactions';
 
         apex_web_service.g_request_headers(1).name  := 'Content-Type';
         apex_web_service.g_request_headers(1).value := 'application/json';
         apex_web_service.g_request_headers(2).name  := 'authorization';
-        apex_web_service.g_request_headers(2).value := pl_token;
+        apex_web_service.g_request_headers(2).value := p_token;
         apex_web_service.g_request_headers(3).name  := 'User-Agent';
         apex_web_service.g_request_headers(3).value := 'MytradeStat/1.0';
 
@@ -232,13 +233,13 @@ as
 	                                        P_LOG_CLOB 	=> pl_response);
             */
             insert into mts_tastytrade_tran_stg ( portfolio_id, line_number,
-                                                  account_number, symbol, instrument_type, underlying_symbol,transaction_type, 
+                                                  account_number, symbol, instrument_type, underlying_symbol,transaction_type, transaction_sub_type, 
                                                   description, action, quantity,price, executed_at, 
                                                   value, value_effect,regulatory_fees, clearing_fees, net_value,commission,  
                                                   order_id ,currency )       
 
             select  p_portfolio_id,rownum + pl_max_line_num,
-                    account_number, symbol, instrument_type, underlying_symbol,transaction_type, 
+                    account_number, symbol, instrument_type, underlying_symbol,transaction_type,transaction_sub_type, 
                     description, action, quantity,price, executed_at, 
                     value, value_effect, regulatory_fees, clearing_fees, net_value,commission,  
                     order_id ,currency
@@ -249,6 +250,7 @@ as
                                             instrument_type             varchar2(100)       path '$."instrument-type"',
                                             underlying_symbol           varchar2(100)       path '$."underlying-symbol"',
                                             transaction_type            varchar2(100)       path '$."transaction-type"',
+                                            transaction_sub_type        varchar2(100)       path '$."transaction-sub-type"',
                                             description                 varchar2(100)       path '$."description"',
                                             action                      varchar2(100)       path '$."action"',
                                             quantity                    varchar2(100)       path '$."quantity"',
@@ -278,15 +280,161 @@ as
 
         commit;
     EXCEPTION
+        
+        when others then   
+            PKG_MTS_APP_UTIL.LOG_MESSAGE (
+                                            P_PACKAGE_NAME	=> 'PKG_TASTYTRADE_API',
+	                                        P_PROCESS_NAME	=> 'get_transaction',
+	                                        P_MSG_STR 	=> SQLCODE || ' - ' || SUBSTR(SQLERRM, 1, 250));
+                                            
+            raise_application_error(-20000, SQLCODE || ' - ' || SUBSTR(SQLERRM, 1, 250), true);
+
+    END;
+
+
+    --------------------------------------------------------------------------------------
+    --    get_account_snapshot
+    --------------------------------------------------------------------------------------
+    procedure  get_account_snapshot( p_portfolio_id      mts_portfolio.id%type    
+                              )
+    as
+        pl_token                mts_api_vendor_token.token%type;
+        pl_start_at             TIMESTAMP ;
+        pl_end_at               TIMESTAMP := CURRENT_TIMESTAMP;
+        pl_portfolio_rec        mts_portfolio%rowtype;
+        pl_response             clob;
+        pl_index                number := 1;
+        pl_param_name           apex_application_global.vc_arr2;
+        pl_param_value          apex_application_global.vc_arr2;
+        pl_total_pages          number(10);
+        pl_current_page         number(10) := 0;
+        pl_max_line_num         number(10);
+    begin
+        BEGIN
+                select  *
+                into    pl_portfolio_rec
+                from    mts_portfolio
+                where   id = p_portfolio_id;
+
+                if ( pl_portfolio_rec.broker_id is null OR pl_portfolio_rec.account_num is null) then
+                    raise_application_error(-20000, 'Portfolio is not set for auto sync.', true); 
+                end if;
+
+                pl_start_at := nvl(pl_portfolio_rec.last_account_snapshot_at,to_timestamp('01-01-' || to_char(current_timestamp,'YYYY'),'MM-DD-YYYY'));
+        EXCEPTION
+            when no_data_found then 
+                raise_application_error(-20000, 'Portfolio not found.', true);   
+        END;
+
+        ---- DELETE PREVIOUS LOADED TRANSACTIONS ---
+        DELETE FROM  mts_tastytrade_acct_balance_stg WHERE portfolio_id = p_portfolio_id;
+
+        ---- GET API TOKEN ---
+        pl_token := get_session_token(  p_user_id => pl_portfolio_rec.user_id,
+                                        p_login   => pl_portfolio_rec.broker_login ,
+                                        p_password  => pl_portfolio_rec.broker_password  );
+        
+        
+        ---- GET ACCOUNT SNAPSHOT ---
+        --pl_full_url  := g_url || 'accounts/' || pl_portfolio_rec.account_num || '/balance-snapshots';
+        pl_full_url  := g_url || 'accounts/' || pl_portfolio_rec.account_num || '/balances';
+
+        apex_web_service.g_request_headers(1).name  := 'Content-Type';
+        apex_web_service.g_request_headers(1).value := 'application/json';
+        apex_web_service.g_request_headers(2).name  := 'authorization';
+        apex_web_service.g_request_headers(2).value := pl_token;
+        apex_web_service.g_request_headers(3).name  := 'User-Agent';
+        apex_web_service.g_request_headers(3).value := 'MytradeStat/1.0';
+
+        pl_param_name(pl_index)  := 'time-of-day';
+        pl_param_value(pl_index) := 'EOD';
+        pl_index := pl_index + 1;        
+
+        pl_param_name(pl_index)  := 'start-at';
+        pl_param_value(pl_index) := to_char(pl_start_at,'YYYY-MM-DD"T"HH:MI:SS');
+        pl_index := pl_index + 1;        
+
+        pl_param_name(pl_index)  := 'end-at';
+        pl_param_value(pl_index) := to_char(pl_end_at,'YYYY-MM-DD"T"HH:MI:SS');
+        pl_index := pl_index + 1;
+
+        
+
+        loop
+
+            pl_param_name(pl_index)  := 'page-offset';
+            pl_param_value(pl_index) := pl_current_page;
+            
+            pl_response := apex_web_service.make_rest_request(
+                            p_url => pl_full_url,
+                            p_http_method => 'GET',
+                            p_parm_name  => pl_param_name,
+                            p_parm_value => pl_param_value);
+
+            apex_json.parse(pl_response);
+            pl_total_pages := apex_json.get_number(p_path => 'pagination."total-pages"');
+           
+            begin
+                select  nvl(max(line_number),0) into pl_max_line_num
+                from    mts_tastytrade_tran_stg
+                where   portfolio_id = p_portfolio_id;
+            exception
+                when no_data_found then
+                    pl_max_line_num := 0;
+            end;
+
+            /*
+            PKG_MTS_APP_UTIL.LOG_MESSAGE (
+                                            P_PACKAGE_NAME	=> 'PKG_TASTYTRADE_API',
+	                                        P_PROCESS_NAME	=> 'get_transaction',
+	                                        P_LOG_LEVEL	=> PKG_MTS_APP_UTIL.ERROR,
+	                                        P_LOG_CLOB 	=> pl_response);
+            */
+            insert into mts_tastytrade_acct_balance_stg ( portfolio_id, snapshot_date , account_number, futures_margin_requirement , 
+                                                        total_settle_balance , cash_settle_balance , maintenance_requirement , pending_cash ,
+                                                        bond_margin_requirement ,long_bond_value , day_trade_excess , cash_available_to_withdraw
+                                                        )       
+
+            select  p_portfolio_id, snapshot_date , account_number, futures_margin_requirement , 
+                    total_settle_balance , cash_settle_balance , maintenance_requirement , pending_cash ,
+                    bond_margin_requirement ,long_bond_value , day_trade_excess , cash_available_to_withdraw
+            from    json_table ( pl_response,  '$.data.items[*]' 
+                                    COLUMNS (
+                                            snapshot_date               varchar2(100)       path '$."snapshot-date"',   
+                                            account_number              varchar2(100)       path '$."account-number"',
+                                            futures_margin_requirement  varchar2(100)       path '$."futures-margin-requirement"',
+                                            total_settle_balance        varchar2(100)       path '$."total-settle-balance"',
+                                            cash_settle_balance         varchar2(100)       path '$."cash-settle-balance"',
+                                            maintenance_requirement     varchar2(100)       path '$."maintenance-requirement"',
+                                            pending_cash                varchar2(100)       path '$."pending-cash"',
+                                            bond_margin_requirement     varchar2(100)       path '$."bond-margin-requirement"',
+                                            long_bond_value             varchar2(100)       path '$."long-bond-value"',
+                                            day_trade_excess            varchar2(100)       path '$."day-trade-excess"',
+                                            cash_available_to_withdraw  varchar2(100)       path '$."cash-available-to-withdraw"'
+                                    )
+                        );
+
+            if ( pl_current_page >= (pl_total_pages-1)  ) then
+                exit;
+            else
+                pl_current_page := pl_current_page + 1;
+            end if;
+        end loop;
+
+        update mts_portfolio
+        set last_account_snapshot_at = pl_end_at
+        where id = p_portfolio_id;
+
+        commit;
+    EXCEPTION
         when OTHERS THEN
             pl_log_msg := pl_log_msg || SQLCODE || SUBSTR(SQLERRM, 1, 64);
             PKG_MTS_APP_UTIL.LOG_MESSAGE (
                                             P_PACKAGE_NAME	=> 'PKG_TASTYTRADE_API',
-	                                        P_PROCESS_NAME	=> 'GET_SESSION_TOKEN',
-	                                        P_LOG_LEVEL	=> PKG_MTS_APP_UTIL.ERROR,
-	                                        P_LOG_MSG 	=> pl_log_msg);
+	                                        P_PROCESS_NAME	=> 'get_account_snapshot',
+	                                        P_MSG_STR 	=> SQLCODE || ' - ' || SUBSTR(SQLERRM, 1, 250));
                                             
-            raise_application_error(-20000, SQLCODE || SUBSTR(SQLERRM, 1, 64), true);
+            raise_application_error(-20000, SQLCODE || ' - ' || SUBSTR(SQLERRM, 1, 250), true);
 
     END;
 

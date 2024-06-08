@@ -1,7 +1,7 @@
 --table =>   mts_broker_trade_import_map
 create table mts_broker_trade_import_map(
-    id                          number(38,0) default mts_import_trade_config_seq.nextval not null,
-    broker_id                   number(38,0)     not null,
+    id                          VARCHAR2(32) default sys_guid() not null,
+    broker_id                   VARCHAR2(36)     not null,
     import_type                 varchar2(10)     not null,
     stg_column                  varchar2(100)    not null,
     source_column               varchar2(100)    not null,    
@@ -23,8 +23,8 @@ create table mts_broker_trade_import_map(
 
 --table =>   mts_import_trade_config
 create table mts_import_trade_config 
-(	id                          number(38,0) default mts_import_trade_config_seq.nextval not null,
-    broker_id                   number(38,0)     not null,
+(	id                          VARCHAR2(32) default sys_guid() not null,
+    broker_id                   VARCHAR2(36)     not null,
     target_column               varchar2(100)    not null,
     expression                  varchar2(4000)     ,
     active                      number(1,0) default 1 not null ,
@@ -48,10 +48,10 @@ create table mts_import_trade_config
 
 --table =>   mts_import_trade_log
 create table mts_import_trade_log 
-(	id                      number(38,0) default mts_import_trade_log_seq.nextval not null,
-    user_id                 varchar2(50) default coalesce(sys_context('apex$session','app_user'),user) not null,
-    portfolio_id            number(38,0) not null,
-    broker_id               number(38,0),  
+(	id                      VARCHAR2(32) default sys_guid() not null,
+    user_id                 VARCHAR2(36) default coalesce(sys_context('apex$session','app_user'),user) not null,
+    portfolio_id            VARCHAR(36) not null,
+    broker_id               VARCHAR(36),  
     import_type             varchar2(10)  default 'FILE' not null,        
     load_date               timestamp (6), 
     start_time              timestamp (6), 
@@ -78,7 +78,7 @@ create table mts_import_trade_log
 
 --table =>   mts_import_trade_data
 create table mts_import_trade_data 
-(	    import_trade_log_id     number(38,0) not null,     
+(	    import_trade_log_id     VARCHAR2(32) default sys_guid() not null,     
         line_number             number(38) not null,
         col_1                   varchar2(1000),
         col_2                   varchar2(1000),
