@@ -31,7 +31,7 @@ AS
         insert into mts_alert_type ( alert_type) values ('Email');
 
         --SETUP_MBR_TYPE ;
-        insert into mts_mbr_type ( mbr_type) values ('DEMO');
+        insert into mts_mbr_type ( mbr_type) values ('BASIC');
         insert into mts_mbr_type ( mbr_type) values ('TRADER');
         insert into mts_mbr_type ( mbr_type) values ('PRO-TRADER');            
             
@@ -125,14 +125,73 @@ AS
                     p_key  => 'PRIVATE_KEY',
                     p_str_value  => 'XXXXXXX',
                     p_active => 1);
+
+        ------------------- Setup FIREBASE_API config data ------------------------
+        pl_app_cntrl_id  := null;
+        pkg_mts_app_util.set_app_cntrl(
+            p_app_cntrl_id => pl_app_cntrl_id,
+            p_name  => 'FIREBASE_API' ,
+            p_description  => 'Firebase API setup for authentication' ,
+            p_active => 1
+        );
+        pl_app_cntrl_value_id  := null;
+        pkg_mts_app_util.set_app_cntrl_value(
+                    p_app_cntrl_value_id => pl_app_cntrl_value_id,
+                    p_app_cntrl_id => pkg_mts_app_util.get_app_cntrl_id(p_name => 'FIREBASE_API'),
+                    p_key  => 'BASE_URL',
+                    p_str_value  => 'https://identitytoolkit.googleapis.com/v1/',
+                    p_active => 1);
+
+        pl_app_cntrl_value_id  := null;
+        pkg_mts_app_util.set_app_cntrl_value(
+                    p_app_cntrl_value_id => pl_app_cntrl_value_id,
+                    p_app_cntrl_id => pkg_mts_app_util.get_app_cntrl_id(p_name => 'FIREBASE_API'),
+                    p_key  => 'KEY',
+                    p_str_value  => 'AIzaSyDyro0ovfeb4eofeLAYJr_ahK4xz3xz18Y',
+                    p_active => 1);
+
+        ------------------- Setup AUTH0 config data ------------------------
+        pl_app_cntrl_id  := null;
+        pkg_mts_app_util.set_app_cntrl(
+            p_app_cntrl_id => pl_app_cntrl_id,
+            p_name  => 'AUTH0_API' ,
+            p_description  => 'AUTH0 API setup for authentication' ,
+            p_active => 1
+        );
+        pl_app_cntrl_value_id  := null;
+        pkg_mts_app_util.set_app_cntrl_value(
+                    p_app_cntrl_value_id => pl_app_cntrl_value_id,
+                    p_app_cntrl_id => pkg_mts_app_util.get_app_cntrl_id(p_name => 'AUTH0_API'),
+                    p_key  => 'BASE_URL',
+                    p_str_value  => 'https://dev-yw01mtc1gezxej0n.us.auth0.com/api/v2/',
+                    p_active => 1);
+
+        pl_app_cntrl_value_id  := null;
+        pkg_mts_app_util.set_app_cntrl_value(
+                    p_app_cntrl_value_id => pl_app_cntrl_value_id,
+                    p_app_cntrl_id => pkg_mts_app_util.get_app_cntrl_id(p_name => 'AUTH0_API'),
+                    p_key  => 'CLIENT_ID',
+                    p_str_value  => 'adudqZGOCG0BZ0kdu1MigcmjXB3oGyMy',
+                    p_active => 1); 
+
+        pl_app_cntrl_value_id  := null;
+        pkg_mts_app_util.set_app_cntrl_value(
+                    p_app_cntrl_value_id => pl_app_cntrl_value_id,
+                    p_app_cntrl_id => pkg_mts_app_util.get_app_cntrl_id(p_name => 'AUTH0_API'),
+                    p_key  => 'CLIENT_SECRET',
+                    p_str_value  => '8QCzJNq_fBDa3nPZLhY9CpKTifu4c_26Xh47iXl91mQTPCx9QgNLbMRw0t1uo5T8',
+                    p_active => 1);            
+                   
         
         ------------------- SETUP API VENDOR ------------------------
-        pkg_mts_app_util.set_api_vendor(
+        pkg_mts_api_vendor.set_api_vendor(
             p_vendor_code  => 'TASTYTRADE' ,
             p_vendor_name  => 'Tasty Trade API' ,
             p_token_interval => 1200,
             p_active => 1
         );
+
+
 
         --SETUP_BROKER;
         insert into mts_broker (BROKER_NAME) values ('TASTYTRADE');
@@ -173,8 +232,8 @@ AS
         );
 
         pkg_mts_user.merge_role(
-                                    p_role_id  => 'DEMO-USER',
-                                    p_role_name => 'Demo Trader',
+                                    p_role_id  => 'BASIC-USER',
+                                    p_role_name => 'Basic',
                                     pl_hierarchy => 700
         );
 
@@ -183,31 +242,36 @@ AS
         pkg_mts_user.register_user(
         p_user_id => pl_user_id,
         p_login_id => 'admin@mytradestat.com',
-        p_theme => 'dark',
+        p_connection => 'mts',
+        p_password => 'Akanksha$801',
+        p_theme => 'mts-dark',
         p_role_id => 'SUPER-ADMIN');
 
         pl_user_id := null;
         pkg_mts_user.register_user(
         p_user_id => pl_user_id,
         p_login_id => 'nishishukla@yahoo.com',
-        p_theme => 'dark',
+        p_connection => 'mts',
+        p_password => 'Anku$801',
+        p_theme => 'mts-dark',
         p_role_id => 'SUPER-ADMIN');
 
         --SETUP_STRATEGY;        
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'VERTICAL','VERTICAL');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'STRANGLE','STRANGLE');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'STRADDLE','STRADDLE');
-        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'OPTION','OPTION');
-        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'IRON CONDOR','IRON CONDOR');
+        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'SINGLE','SINGLE LEG');
+        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'IRON_CONDOR','IRON CONDOR');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'COVERED','COVEREDR');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'BUTTERFLY','BUTTERFLY');
-        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'IRON BUTTERFLY','IRON BUTTERFLY');
-        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'JADE LIZARD','JADE LIZARD');
+        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'IRON_BUTTERFLY','IRON BUTTERFLY');
+        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'JADE_LIZARD','JADE LIZARD');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'CALENDAR','CALENDAR');
-        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'RATIO SPREAD','RATIO SPREAD');
+        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'RATIO_SPREAD','RATIO SPREAD');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'FUTURES','FUTURES');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'STOCK','STOCK');
         insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'CRYPTO','CRYPTO');
+        insert into mts_strategy (  user_id,name, description) values (PKG_MTS_USER.GET_USER_ID('admin@mytradestat.com'),'CUSTOM','CUSTOM');
 
 
         COMMIT;

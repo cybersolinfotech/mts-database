@@ -29,7 +29,17 @@ select user_id, portfolio_id, symbol, exp_date, order_type, strike, trade_code,
                         else 0
                 end)) as CLOSE_PRICE,
         sum(commission) commission,
+        pkg_mts_util.get_unit_price( p_qty =>  sum((case    when action_code in ( 'BTO','STO', 'BUY') then qty  
+                                                            else 0
+                                                    end)),
+                                     p_price => sum(commission)
+                                    ) AS unit_commission,
         sum(fees) fees,
+        pkg_mts_util.get_unit_price( p_qty =>  sum((case    when action_code in ( 'BTO','STO', 'BUY') then qty  
+                                                            else 0
+                                                    end)),
+                                     p_price => sum(fees)
+                                    ) AS unit_fees,
         pkg_mts_util.get_unit_price( p_qty =>  sum((case    when action_code in ( 'BTC','STC','SELL','REMO') then qty  
                                                             else 0
                                                     end)),

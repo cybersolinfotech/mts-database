@@ -7,7 +7,7 @@ where broker_id in ( select id from mts_broker where lower(broker_name) = 'tasty
 
 create or replace view v_mts_tastytrade_import_data
 as
-select  import_trade_log_id,
+select  a.import_trade_log_id,
         line_number,
         col_1 account_number,
         col_2 symbol,
@@ -28,7 +28,8 @@ select  import_trade_log_id,
         col_17 commission,
         col_18 order_id,
         col_19 currency,
-        load_status,
-        log_msg
+        b.load_status,
+        b.log_msg
 from mts_import_trade_data a
 join v_mts_tastytrade_import_log b on b.id = a.import_trade_log_id;
+

@@ -2,8 +2,16 @@
  PACAKAGE SPEC :
  *******************************************************************************************************************/
 create or replace package pkg_mts_util as 
+    function encrypt(p_input varchar2) return varchar2;
+    
+
+
+
     function get_num_class(p_input number) return varchar2; 
     function get_dte(p_exp_date timestamp) return number;
+    function get_start_of_week(p_week_number number) return date;
+    function get_end_of_week(p_week_number number) return date;
+
     
     function get_profit_loss(   p_open_qty      number, 
                                 p_open_price    number, 
@@ -50,6 +58,18 @@ create or replace package body pkg_mts_util as
     end print_clob_to_output;
 
 
+    function encrypt(p_input varchar2) return varchar2
+    as
+        pl_hash VARCHAR2(4000);
+        
+    begin
+        pl_hash := DBMS_OBFUSCATION_TOOLKIT.MD5(input => UTL_I18N.STRING_TO_RAW(p_input, 'AL32UTF8'));
+        return pl_hash;
+    exception
+        when others then
+            raise_application_error(-20001,'Invalid input string.', true);
+    end encrypt;
+
     function get_num_class(p_input number) return varchar2 
     as 
         pl_return   varchar2(100); 
@@ -75,7 +95,19 @@ create or replace package body pkg_mts_util as
             pl_return := null;
         end if;
         return pl_return;
-    end get_dte;     
+    end get_dte;    
+
+    function get_start_of_week(p_week_number number) return date
+    as
+    begin
+        return TRUNC(TO_DATE('2024', 'YYYY'), 'YYYY') + (p_week_number - 1) * 7;
+    end get_start_of_week;
+
+    function get_end_of_week(p_week_number number) return date
+    as
+    begin
+        return NEXT_DAY(TRUNC(TO_DATE('2024', 'YYYY'), 'YYYY') + (p_week_number - 1) * 7, 'SUNDAY') ;
+    end get_end_of_week;
      
 
 
@@ -104,8 +136,7 @@ create or replace package body pkg_mts_util as
                                         p_close_price number) return number
     as
         pl_return       number;
-        pl_profit_loss  number;
-        
+        pl_profit_loss  number;      
     begin
         
         if  nvl(p_open_price,0) = 0 then   
@@ -115,7 +146,6 @@ create or replace package body pkg_mts_util as
         pl_profit_loss  :=  nvl(p_open_price,0) + nvl(p_close_price,0);
         pl_return := round(pl_profit_loss/p_open_price * 100,2);        
         return pl_return;
-
     end get_profit_loss_percent;
 
     function get_unit_price(    p_qty      number, 
@@ -126,7 +156,7 @@ create or replace package body pkg_mts_util as
         if ( nvl(p_qty,0) = 0 ) THEN
             pl_return := 0;  
         else   
-            pl_return := round(p_price /p_qty,4);    
+            pl_return := round(p_price /abs(p_qty),4);    
         end if;
         return pl_return;
     end get_unit_price;
@@ -138,7 +168,6 @@ create or replace package body pkg_mts_util as
                              p_strike   mts_trade_tran.strike%type
 
                             ) return varchar2
-
     as
     begin
         return trim(p_symbol) || '-' || nvl(to_char(p_exp_date,'YYYYMMDD'),'99991231')|| '-'|| nvl(p_order_type,'E') || '-' || to_char(NVL(p_strike,'999999'));

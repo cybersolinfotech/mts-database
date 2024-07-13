@@ -86,3 +86,20 @@ create table mts_alert_type (
 	--
 	constraint mts_alert_type  primary key (id) using index  
 );
+
+--table =>   mts_role ---
+create table mts_role 
+   (	role_id                 varchar2(20 char) not null , 
+	   	role_name               varchar2(60 char) not null , 
+	   	hierarchy               number(10,0) default 9999999 not null , 
+	   	active                  number(1,0) default 1 not null ,	
+		created_by       		varchar2(100) default coalesce(sys_context('apex$session','app_user'),user) not null,            
+        create_date      		timestamp (6) default current_timestamp, 
+        updated_by       		varchar2(100) , 
+        update_date      		timestamp (6), 
+		-- 
+		constraint mts_role_con1 check ( active in ( 1,0) ) , 
+		--
+	   	constraint mts_role_pk  primary key (role_id) using index  
+   ) ;
+/

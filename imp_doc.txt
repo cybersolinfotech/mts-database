@@ -1,0 +1,3 @@
+https://gd6069ea153f2da-mtsdevdb.adb.us-ashburn-1.oraclecloudapps.com/ords/apex_authentication.callback
+
+https://app.mytradestat.com/ords/r/mtsws/mts/

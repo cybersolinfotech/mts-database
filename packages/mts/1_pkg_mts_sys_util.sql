@@ -29,9 +29,12 @@ as
             pl_query := pl_query || 'before update on ' || c1rec.table_name ||  pl_new_line;
             pl_query := pl_query || 'for each row' ||  pl_new_line;
             pl_query := pl_query || 'begin' ||  pl_new_line;
-            pl_query := pl_query || pl_tab || 'if updating then' ||  pl_new_line;
+            pl_query := pl_query || pl_tab || 'if inserting then' ||  pl_new_line;
+            pl_query := pl_query || pl_tab || pl_tab || ':new.create_date := current_timestamp;' ||  pl_new_line;
+            pl_query := pl_query || pl_tab || pl_tab || ':new.created_by := coalesce(sys_context(' || pl_quote || 'apex$session' || pl_quote || ',' || pl_quote || 'g_login_id' || pl_quote || '),user);'|| pl_new_line;
+            pl_query := pl_query || pl_tab || 'elsif updating then' ||  pl_new_line;
             pl_query := pl_query || pl_tab || pl_tab || ':new.update_date := current_timestamp;' ||  pl_new_line;
-            pl_query := pl_query || pl_tab || pl_tab || ':new.updated_by := coalesce(sys_context(' || pl_quote || 'apex$session' || pl_quote || ',' || pl_quote || 'app_user' || pl_quote || '),user);'|| pl_new_line;
+            pl_query := pl_query || pl_tab || pl_tab || ':new.updated_by := coalesce(sys_context(' || pl_quote || 'apex$session' || pl_quote || ',' || pl_quote || 'g_login_id' || pl_quote || '),user);'|| pl_new_line;
             pl_query := pl_query || pl_tab || 'end if;' ||  pl_new_line;
 
             pl_query := pl_query || 'end trg_sys_' || c1rec.table_name || ';' ||  pl_new_line;

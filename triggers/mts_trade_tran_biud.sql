@@ -35,6 +35,12 @@ begin
 				:new.qty := 0;
 			end if;
 		end if;
+
+		if ( :new.strategy_id is null ) then
+			:new.strategy_id := pkg_mts_trade.get_strategy_id(p_strategy_name => 'SINGLE');
+		end if;
+
+
 	end if;	
 
     

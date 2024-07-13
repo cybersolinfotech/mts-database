@@ -10,6 +10,7 @@ begin
 								p_user_id => :new.user_id,
 								p_theme => :new.theme);
 
+		
 	elsif updating then
 
         if :new.theme != :old.theme then

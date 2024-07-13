@@ -13,9 +13,9 @@ as
                                 p_login         varchar2 ,
                                 p_password      varchar2  ,
                                 p_remember_me   boolean default true                              
-                              ) return mts_api_vendor_token.token%type;
+                              ) return mts_user_api_token.token%type;
     
-    procedure  get_transaction( p_token             mts_api_vendor_token.token%type, 
+    procedure  get_transaction( p_token             mts_user_api_token.token%type, 
                                 p_portfolio_id      mts_portfolio.id%type);
 
     procedure   get_account_snapshot(p_portfolio_id mts_portfolio.id%type);
@@ -59,11 +59,11 @@ as
                                 p_login         varchar2 ,
                                 p_password      varchar2  ,
                                 p_remember_me   boolean default true                              
-                              ) return mts_api_vendor_token.token%type
+                              ) return mts_user_api_token.token%type
     is
         pl_clob            clob;
         pl_body            clob;
-        pl_token           mts_api_vendor_token.token%type;
+        pl_token           mts_user_api_token.token%type;
         
     begin
         
@@ -72,7 +72,7 @@ as
         pl_log_msg  := '[get_session_token].[p_user_id] = ' || p_user_id || pl_newline;
         
 
-        pl_token := pkg_mts_app_util.get_api_token(p_user_id => p_user_id,
+        pl_token := pkg_mts_api_vendor.get_user_api_token(p_user_id => p_user_id,
                                                     p_vendor_code => pl_vendor_code);
         
         if ( pl_token is not null ) then
@@ -110,7 +110,7 @@ as
 
         pl_token :=  apex_json.get_varchar2(p_path => 'data."session-token"');
 
-        pkg_mts_app_util.set_api_vendor_token(p_user_id => p_user_id,
+        pkg_mts_api_vendor.set_user_api_token(p_user_id => p_user_id,
                                         p_vendor_code => pl_vendor_code,
                                         p_token => pl_token,
                                         p_issued_at => current_timestamp);
@@ -124,7 +124,8 @@ as
             PKG_MTS_APP_UTIL.LOG_MESSAGE (
                                             P_PACKAGE_NAME	=> 'PKG_TASTYTRADE_API',
 	                                        P_PROCESS_NAME	=> 'get_session_token',
-	                                        P_MSG_STR 	=> SQLCODE || ' - ' || SUBSTR(SQLERRM, 1, 250));
+	                                        P_MSG_STR 	=> SQLCODE || ' - ' || SUBSTR(SQLERRM, 1, 250),
+                                            P_MSG_CLOB => pl_log_msg);
                                             
             raise_application_error(-20000, SQLCODE || SUBSTR(SQLERRM, 1, 250), true);
             
@@ -133,13 +134,13 @@ as
     --------------------------------------------------------------------------------------
     --    get_transactions
     --------------------------------------------------------------------------------------
-    procedure  get_transaction( p_token             mts_api_vendor_token.token%type, 
+    procedure  get_transaction( p_token             mts_user_api_token.token%type, 
                                 p_portfolio_id      mts_portfolio.id%type
 
                               )
     as
         pl_start_at             TIMESTAMP ;
-        pl_end_at               TIMESTAMP := CURRENT_TIMESTAMP;
+        pl_end_at               TIMESTAMP := CURRENT_TIMESTAMP; 
         pl_portfolio_rec        mts_portfolio%rowtype;
         pl_response             clob;
         pl_index                number := 1;
@@ -160,6 +161,7 @@ as
                 end if;
 
                 pl_start_at := nvl(pl_portfolio_rec.last_import_trade_at,to_timestamp('01-01-' || to_char(current_timestamp,'YYYY'),'MM-DD-YYYY'));
+               
         EXCEPTION
             when no_data_found then 
                 raise_application_error(-20000, 'Portfolio not found.', true);   
@@ -183,11 +185,11 @@ as
         pl_index := pl_index + 1;        
 
         pl_param_name(pl_index)  := 'start-at';
-        pl_param_value(pl_index) := to_char(pl_start_at,'YYYY-MM-DD"T"HH:MI:SS');
+        pl_param_value(pl_index) := to_char(CAST(pl_start_at AT TIME ZONE 'UTC' AS TIMESTAMP),'YYYY-MM-DD"T"HH:MI:SS');
         pl_index := pl_index + 1;        
 
         pl_param_name(pl_index)  := 'end-at';
-        pl_param_value(pl_index) := to_char(pl_end_at,'YYYY-MM-DD"T"HH:MI:SS');
+        pl_param_value(pl_index) := to_char(CAST(pl_end_at AT TIME ZONE 'UTC' AS TIMESTAMP),'YYYY-MM-DD"T"HH:MI:SS');
         pl_index := pl_index + 1;
 
         pl_param_name(pl_index)  := 'types[]';
@@ -226,7 +228,7 @@ as
             end;
 
             /*
-            PKG_MTS_APP_UTIL.LOG_MESSAGE (
+            PKG_MTS_APP_UTIL.LOG_MESSAGE (MTS_API_VENDOR_TOKEN
                                             P_PACKAGE_NAME	=> 'PKG_TASTYTRADE_API',
 	                                        P_PROCESS_NAME	=> 'get_transaction',
 	                                        P_LOG_LEVEL	=> PKG_MTS_APP_UTIL.ERROR,
@@ -298,7 +300,7 @@ as
     procedure  get_account_snapshot( p_portfolio_id      mts_portfolio.id%type    
                               )
     as
-        pl_token                mts_api_vendor_token.token%type;
+        pl_token                mts_user_api_token.token%type;
         pl_start_at             TIMESTAMP ;
         pl_end_at               TIMESTAMP := CURRENT_TIMESTAMP;
         pl_portfolio_rec        mts_portfolio%rowtype;

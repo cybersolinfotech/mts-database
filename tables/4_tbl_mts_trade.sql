@@ -25,6 +25,8 @@ create table mts_broker
       import_available           number(1,0) default 0,
       add_header_row		         char(1) default upper('y') not null,
       field_enclosed_by	         char(1) ,
+      api_instruction            clob,
+      import_instruction         clob,
       active                     number(1,0) default 1 not null ,
       created_by                 varchar2(100) default coalesce(sys_context('apex$session','app_user'),user) not null,            
       create_date                timestamp (6) default current_timestamp not null, 
@@ -218,7 +220,7 @@ create table mts_trade_tran
       user_id                 VARCHAR2(32) default coalesce(sys_context('apex$session','app_user'),user) not null, 
       portfolio_id            VARCHAR2(32) not null, 
       tran_date               timestamp (6) default current_timestamp, 
-      symbol                  varchar2(30 byte) , 
+      symbol                  varchar2(30) , 
       exp_date                timestamp (6) default trunc(current_timestamp), 
       order_type              varchar2(10 char) , 
       strike                  number(20,5),  
@@ -228,7 +230,8 @@ create table mts_trade_tran
       price                   number(10,2), 
       commission              number(10,2),
       fees                    number(10,2),         
-      source_order_id         varchar2(100 byte) ,
+      source_order_id         varchar2(100) ,
+      strategy_id             VARCHAR2(32),
       trade_group_id          VARCHAR2(32),
       notes                   varchar2(1000),
       active                  number(1,0) default 1 not null , 
@@ -242,8 +245,9 @@ create table mts_trade_tran
       constraint mts_trade_tran_fk1 foreign key (user_id) references mts_user (user_id) ,
       constraint mts_trade_tran_fk2 foreign key (portfolio_id) references mts_portfolio (id) ,
       constraint mts_trade_tran_fk3 foreign key (trade_group_id) references mts_trade_group (id) ,
+      constraint mts_trade_tran_fk4 foreign key (strategy_id) references mts_strategy (id) ,
       --
-      constraint mts_trade_tran_unq1 unique ( user_id,portfolio_id,tran_date,symbol,trade_code,action_code),    
+      --constraint mts_trade_tran_unq1 unique ( user_id,portfolio_id,tran_date,symbol,trade_code,action_code),    
       --
       constraint mts_trade_tran_pk primary key ( id)
         
@@ -252,7 +256,7 @@ create table mts_trade_tran
    create table mts_trade_tran_tag
    (
       id               VARCHAR2(32) default sys_guid() not null,
-      trage_tran_id    VARCHAR2(32) not null,
+      trade_tran_id    VARCHAR2(32) not null,
       trade_tag_id     VARCHAR2(32) not null, 
       active           number(1,0) default 1 not null , 
       created_by       varchar2(100) default coalesce(sys_context('apex$session','app_user'),user) not null,            
@@ -262,10 +266,10 @@ create table mts_trade_tran
       --
       constraint mts_trade_tran_tag_con1 check ( active in ( 1,0) ) ,
       --
-      constraint mts_trade_tran_tag_fk1 foreign key (trage_tran_id) references mts_trade_tran (id) ,
+      constraint mts_trade_tran_tag_fk1 foreign key (trade_tran_id) references mts_trade_tran (id) ,
       constraint mts_trade_tran_tag_fk2 foreign key (trade_tag_id) references mts_trade_tag (id) ,
       --
-      constraint mts_trade_tran_tag_unq1 unique (trage_tran_id,trade_tag_id)  ,
+      constraint mts_trade_tran_tag_unq1 unique (trade_tran_id,trade_tag_id)  ,
       --
       constraint mts_trade_tran_tag_pk primary key ( id )
    );

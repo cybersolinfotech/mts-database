@@ -308,12 +308,21 @@ end pkg_mts_ws_trade;
                 source_order_id ,
                 notes
         from    mts_ws_trade
-        where   user_id = 'nishishukla@yahoo.com' 
+        where   user_id = p_user_id 
         order by tran_date asc;
 
         truncate_ws_trade(p_user_id);
 
         commit;
+    exception 
+        when others then   
+            PKG_MTS_APP_UTIL.LOG_MESSAGE(
+                P_PACKAGE_NAME => 'pkg_mts_ws_trade',
+                P_PROCESS_NAME => 'finalize_trade',
+                P_LOG_TYPE => 'E',
+                P_MSG_STR => SQLCODE || ' - ' || SUBSTR(SQLERRM,1,250)
+            );
+            raise_application_error(-20000, SQLCODE || ' - ' || SUBSTR(SQLERRM,1,250), true); 
     end;
 
 end pkg_mts_ws_trade;

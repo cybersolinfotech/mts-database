@@ -1,7 +1,5 @@
 -- vendor objects
 drop table  mts_tastytrade_tran_stg;
-drop table mts_tastytrade_acct_balance;
-
 
 -- import trade objects
 drop table mts_broker_trade_import_map;
@@ -36,7 +34,7 @@ drop table mts_product;
 -- user objects
 drop table mts_pro_trader_member;
 drop table mts_pro_trader;
-drop table mts_api_vendor_token;
+drop table mts_user_api_token;
 drop table mts_user;
 drop table mts_role;
 

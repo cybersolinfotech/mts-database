@@ -1,26 +1,3 @@
---table =>   mts_api_vendor
-create table mts_api_vendor
-(
-	vendor_code						varchar2(20) not null,
-	vendor_name						varchar2(100) not null,
-	token_interval					number(10) default 0 not null ,
-	active                  		number(1,0) default 1 not null ,
-	created_by       				varchar2(100) default coalesce(sys_context('apex$session','app_user'),user) not null,            
-	create_date      				timestamp (6) default current_timestamp, 
-	updated_by       				varchar2(100) , 
-	update_date      				timestamp (6),
-	--					
-	constraint mts_api_vendor_con1 check ( active in ( 1,0) ) ,
-	--	
-	constraint mts_api_vendor_pk  primary key (vendor_code) using index   
-
-);
-
-
-
-
-
-
 
 
 --table =>   mts_app_cntrl
@@ -77,4 +54,5 @@ CREATE TABLE MTS_APP_PROCESS_LOG
 	CONSTRAINT  	MTS_APP_PROCESS_LOG_PK	PRIMARY KEY ( ID)
 
 );
+
 

@@ -3,6 +3,37 @@
  *******************************************************************************************************************/
 create or replace package pkg_stripe_api
 as
+    pl_type_success          CONSTANT VARCHAR2(8)    := 'SUCCESS';
+    pl_type_cancel           CONSTANT VARCHAR2(8)    := 'CANCEL';
+    pl_result_server         CONSTANT VARCHAR2(256)  := 'gd6069ea153f2da-mtsdevdb.adb.us-ashburn-1.oraclecloudapps.com';
+    pl_result_page_id        CONSTANT NUMBER(8)      := 101;
+    --------------------------------------------------------------------------------------
+    --    API : Checkout functions
+    --------------------------------------------------------------------------------------
+
+
+    FUNCTION get_session_id RETURN NUMBER;
+    FUNCTION get_success_token RETURN VARCHAR2;
+    FUNCTION get_success_url (
+        p_cart_id          VARCHAR2,
+        p_token            VARCHAR2,
+        p_session_id       NUMBER      := NULL
+    )
+    RETURN VARCHAR2;
+    FUNCTION get_cancel_url (
+        p_cart_id          VARCHAR2,
+        p_session_id       NUMBER      := NULL
+    )
+    RETURN VARCHAR2;
+
+    function create_checkout_session(
+        p_request_rec   in out nocopy mts_pay_request%rowtype,
+        p_param_name           apex_application_global.vc_arr2,
+        p_param_value          apex_application_global.vc_arr2
+
+    ) return varchar2;
+
+
     --------------------------------------------------------------------------------------
     --    API : CUSTOMER
     --------------------------------------------------------------------------------------
@@ -56,6 +87,8 @@ as
 
     procedure delete_plan (     p_pay_plan_id           mts_plan.pay_plan_id%type);
 
+
+    
 end  pkg_stripe_api;
 /
 
@@ -71,7 +104,116 @@ as
     pl_base_url     constant    mts_app_cntrl_value.str_value%type  := pkg_mts_app_util.get_app_cntrl_str_value(  p_app_cntrl_name  => 'STRIPE_API',
                                                                                                              p_key => 'BASE_URL') || '/v1';  
 
-    pl_billing_scheme constant  varchar2(100) := 'per_unit';         
+    pl_billing_scheme constant  varchar2(100) := 'per_unit';   
+
+    pl_log_msg              mts_app_process_log.msg_str%type;
+    pl_newline              char(1) := chr(10);
+
+    --------------------------------------------------------------------------------------
+    --    API : Checkout functions
+    --------------------------------------------------------------------------------------
+
+    FUNCTION get_session_id
+    RETURN NUMBER
+    AS
+    BEGIN
+        RETURN SYS_CONTEXT('APEX$SESSION', 'APP_SESSION');  -- APEX_APPLICATION.G_INSTANCE
+    END;
+
+
+    FUNCTION get_success_token
+    RETURN VARCHAR2
+    AS
+    BEGIN
+        RETURN DBMS_RANDOM.STRING('X', 64);
+    END;
+
+
+
+    FUNCTION get_success_url (
+        p_cart_id          VARCHAR2,
+        p_token            VARCHAR2,
+        p_session_id       NUMBER      := NULL
+    )
+    RETURN VARCHAR2
+    AS
+    BEGIN
+        RETURN 'https://' || pl_result_server ||
+            APEX_PAGE.GET_URL (
+                p_session           => COALESCE(p_session_id, get_session_id()),
+                p_page              => pl_result_page_id,
+                p_clear_cache       => pl_result_page_id,
+                p_items             => REPLACE('P#_TYPE,P#_CART_ID,P#_TOKEN', '#', pl_result_page_id),
+                p_values            => pl_type_success || ',' || p_cart_id || ',' || p_token
+            );
+    END;
+
+
+
+    FUNCTION get_cancel_url (
+        p_cart_id          VARCHAR2,
+        p_session_id       NUMBER      := NULL
+    )
+    RETURN VARCHAR2
+    AS
+    BEGIN
+        RETURN 'https://' || pl_result_server ||
+            APEX_PAGE.GET_URL (
+                p_session           => COALESCE(p_session_id, get_session_id()),
+                p_page              => pl_result_page_id,
+                p_clear_cache       => pl_result_page_id,
+                p_items             => REPLACE('P#_TYPE,P#_CART_ID,P#_TOKEN', '#', pl_result_page_id),
+                p_values            => pl_type_cancel || ',' || p_cart_id || ',' || '0'
+            );
+    END;
+
+    
+    -- create check out session --
+    function create_checkout_session(
+        p_request_rec   in out nocopy mts_pay_request%rowtype,
+        p_param_name           apex_application_global.vc_arr2,
+        p_param_value          apex_application_global.vc_arr2
+
+    ) return varchar2
+    as
+        pl_response             clob;
+        pl_token                varchar2(60);
+        pl_url                  varchar2(1000);
+        pl_return               varchar2(1000);
+    begin
+        pl_url := pl_base_url || '/checkout/sessions';
+        
+
+        apex_web_service.g_request_headers(1).name  := 'authorization';
+        apex_web_service.g_request_headers(1).value := 'bearer ' || pl_private_key;
+        apex_web_service.g_request_headers(2).name  := 'content-type';
+        apex_web_service.g_request_headers(2).value := 'application/x-www-form-urlencoded';
+        pl_response := apex_web_service.make_rest_request(
+                        p_url => pl_url,
+                        p_http_method => 'POST',
+                        p_parm_name  => p_param_name,
+                        p_parm_value => p_param_value);
+        
+        apex_json.parse(pl_response);
+
+        if ( apex_json.does_exist(p_path => 'url') ) then
+            p_request_rec.pay_response :=  APEX_JSON.GET_VARCHAR2(p_path => 'url'); 
+            p_request_rec.is_success := 'Y';
+        
+        else
+        
+            p_request_rec.pay_response := APEX_JSON.GET_VARCHAR2(p_path => 'error.message');
+            p_request_rec.is_success := 'N';  
+            pl_return :=  null;    
+        end if;     
+        
+        return pl_return;
+    exception
+        when others then
+            raise;
+    end ;
+
+
 
     --------------------------------------------------------------------------------------
     --    API : CUSTOMER
@@ -502,6 +644,8 @@ as
         dbms_output.put_line('[delete_product].[pl_response] = ' || pl_response);
 
     end delete_plan; 
+
+
 
 
 end pkg_stripe_api;

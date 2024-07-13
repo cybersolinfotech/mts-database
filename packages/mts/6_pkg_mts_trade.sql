@@ -6,6 +6,7 @@ create or replace package pkg_mts_trade as
     function get_action( p_code     mts_trade_action.code%type ) return mts_trade_action.name%type; 
     function get_order_type( p_code     mts_order_type.code%type ) return mts_order_type.name%type ;
     function get_portfolio_name(p_portfolio_id  mts_portfolio.id%type) return mts_portfolio.portfolio_name%type;
+    function get_strategy_id (p_strategy_name mts_strategy.name%type) return mts_strategy.id%type;
     function get_trade_code( 
                              p_symbol   mts_trade_tran.symbol%type,
                              p_exp_date   mts_trade_tran.exp_date%type,
@@ -136,6 +137,21 @@ end pkg_mts_trade;
     begin
         return trim(p_symbol) || '-' || nvl(to_char(p_exp_date,'YYYYMMDD'),'99991231')|| '-'|| nvl(p_order_type,'E') || '-' || to_char(NVL(p_strike,'999999'));
     end ;
+
+    function get_strategy_id (p_strategy_name mts_strategy.name%type) return mts_strategy.id%type
+    as
+        pl_return       mts_strategy.id%type ; 
+    begin
+        select id into pl_return
+        from    mts_strategy
+        where   user_id = pkg_mts_user.get_user_id(p_email => 'admin@mytradestat.com')
+        and     lower(name) = lower(p_strategy_name);
+
+        return pl_return;
+    exception
+        when no_data_found then
+            return null;
+    end get_strategy_id;
      
 
     /***************************************************************************

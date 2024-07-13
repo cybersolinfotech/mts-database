@@ -60,7 +60,12 @@ as
         
         -- get tran_date
         --pl_ws_trade_rec.tran_date := TO_UTC_TIMESTAMP_TZ(p_imp_trade_rec.col_10);
-        select TO_UTC_TIMESTAMP_TZ(p_imp_trade_rec.executed_at) into pl_ws_trade_rec.tran_date from dual;
+        --select TO_TIMESTAMP_TZ('2024-07-09T21:00:00.000+00:00', 'YYYY-MM-DD"T"HH24:MI:SS.FFTZH:TZM') AT TIME ZONE 'UTC' AS utc_time from dual;
+        --select CAST(p_imp_trade_rec.executed_at AT TIME ZONE 'UTC' AS TIMESTAMP) AT TIME ZONE 'America/New_York' into pl_ws_trade_rec.tran_date from dual;
+        SELECT  TO_TIMESTAMP_TZ(p_imp_trade_rec.executed_at, 'YYYY-MM-DD"T"HH24:MI:SS.FFTZH:TZM') AT TIME ZONE 'America/New_York' 
+        INTO    pl_ws_trade_rec.tran_date
+        FROM dual;
+        
         pl_msg_clob := pl_msg_clob || '[process_trade_tran].[pl_ws_trade_rec.tran_date] = ' ||  pl_ws_trade_rec.tran_date || pl_new_line;
         
         ---- get symbol
@@ -181,7 +186,7 @@ as
             p_status := 'E';
             --dbms_output.put_line('[pkg_tastytrade_load].[process_trade_tran][LineNumber] = ' ||  pl_ws_trade_rec.line_number || '-' || SQLCODE || ' - ' || SUBSTR(SQLERRM,1,250));
             PKG_MTS_APP_UTIL.LOG_MESSAGE(
-                P_PACKAGE_NAME => 'process_trade_tran',
+                P_PACKAGE_NAME => 'pkg_tastytrade_load',
                 P_PROCESS_NAME => 'process_trade_tran',
                 P_LOG_TYPE => 'E',
                 P_MSG_CLOB => pl_msg_clob,
@@ -234,7 +239,7 @@ as
         when others then 
             p_status := 'E';
             PKG_MTS_APP_UTIL.LOG_MESSAGE(
-                P_PACKAGE_NAME => 'process_trade_tran',
+                P_PACKAGE_NAME => 'pkg_tastytrade_load',
                 P_PROCESS_NAME => 'process_portfolio_tran',
                 P_LOG_TYPE => 'E',
                 P_MSG_CLOB => pl_msg_clob,
@@ -368,8 +373,8 @@ as
 
             if (pl_rec_count > 0 ) then
                 -- create record in mts_trade_import_log table
-                insert into mts_import_trade_log (user_id,portfolio_id,broker_id,load_date)
-                values (p_user_id,p_portfolio_id,p_broker_id,pl_load_date) returning id into pl_import_log_id;
+                insert into mts_import_trade_log (user_id,portfolio_id,broker_id,import_type,load_date)
+                values (p_user_id,p_portfolio_id,p_broker_id,'API',pl_load_date) returning id into pl_import_log_id;
 
                 insert into mts_import_trade_data ( import_trade_log_id, line_number,
                                                 col_1, col_2, col_3, col_4, col_5, col_6,
@@ -394,7 +399,6 @@ as
         dbms_output.put_line('[pkg_tastytrade_load][sync_transaction][pl_import_log_id] ' || pl_import_log_id );
         if ( pl_import_log_id is not null) then
             process_transaction(p_import_log_id => pl_import_log_id);
-        ELSE
             p_import_log_id := pl_import_log_id;
         end if;
 
