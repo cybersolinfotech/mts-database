@@ -179,7 +179,7 @@ AS
                     p_app_cntrl_value_id => pl_app_cntrl_value_id,
                     p_app_cntrl_id => pkg_mts_app_util.get_app_cntrl_id(p_name => 'AUTH0_API'),
                     p_key  => 'CLIENT_SECRET',
-                    p_str_value  => '8QCzJNq_fBDa3nPZLhY9CpKTifu4c_26Xh47iXl91mQTPCx9QgNLbMRw0t1uo5T8',
+                    p_str_value  => 'XXXXXXXXXXXXXXXXXXXX',
                     p_active => 1);            
                    
         
@@ -243,7 +243,7 @@ AS
         p_user_id => pl_user_id,
         p_login_id => 'admin@mytradestat.com',
         p_connection => 'mts',
-        p_password => 'Akanksha$801',
+        p_password => 'XXXXXXX',
         p_theme => 'mts-dark',
         p_role_id => 'SUPER-ADMIN');
 
@@ -252,7 +252,7 @@ AS
         p_user_id => pl_user_id,
         p_login_id => 'nishishukla@yahoo.com',
         p_connection => 'mts',
-        p_password => 'Anku$801',
+        p_password => 'XXXXXXX',
         p_theme => 'mts-dark',
         p_role_id => 'SUPER-ADMIN');
 
